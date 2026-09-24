@@ -223,7 +223,7 @@ Re-run attribution whenever an order is updated or a late pixel event arrives fo
 
 ## 8. Debug page (`/debug`)
 
-An internal tool, protected with HTTP Basic Auth using `DEBUG_PASSWORD` in `proxy.ts` (Next.js 16 renamed `middleware.ts` to `proxy.ts`).
+An internal tool for admins. It was first protected with HTTP Basic Auth (`DEBUG_PASSWORD`); Phase 3 replaced that with team login (see `phase-3-spec.md`).
 
 - Search by order name (`#1001`), order ID, visitor ID or checkout token.
 - **Order view:** order summary, `stitch_method`, visitor ID, the three attribution results, and a timeline of the visitor's events (type, time, source, channel, UTMs, URL).
@@ -245,7 +245,6 @@ SHOPIFY_ADMIN_TOKEN=
 SHOPIFY_CLIENT_SECRET=
 ALLOWED_ORIGINS=            # comma-separated storefront origins, e.g. https://yourstore.com
 IP_HASH_SALT=               # random string
-DEBUG_PASSWORD=             # for /debug
 ```
 
 ## Build order and definition of done

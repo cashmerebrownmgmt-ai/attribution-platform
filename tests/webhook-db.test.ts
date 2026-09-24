@@ -116,3 +116,22 @@ describe("redaction", () => {
     expect(rows[0].n).toBe(0);
   });
 });
+
+describe("join_team", () => {
+  const join = async (id: string, email: string) =>
+    (await pg.query<{ role: string | null }>("select public.join_team($1::uuid, $2) as role", [id, email])).rows[0].role;
+  const U1 = "11111111-1111-4111-8111-111111111111";
+  const U2 = "22222222-2222-4222-8222-222222222222";
+  const U3 = "33333333-3333-4333-8333-333333333333";
+
+  it("makes the first person owner, then admits only invited emails", async () => {
+    expect(await join(U1, " Owner@Example.com ")).toBe("owner");
+    expect(await join(U1, "owner@example.com")).toBe("owner"); // idempotent
+    expect(await join(U2, "stranger@example.com")).toBeNull();
+
+    await pg.query("insert into invites (email, role) values ('teammate@example.com', 'viewer')");
+    expect(await join(U3, "Teammate@example.com")).toBe("viewer");
+    const { rows } = await pg.query("select count(*)::int n from invites");
+    expect(rows).toEqual([{ n: 0 }]); // invite used up
+  });
+});

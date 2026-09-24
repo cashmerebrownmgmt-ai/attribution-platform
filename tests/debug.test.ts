@@ -1,28 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkBasicAuth } from "@/lib/basic-auth";
 import { formatMoney, formatPercent, matchStats, parseSearch } from "@/lib/debug";
-
-const basic = (user: string, pass: string) => `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
-
-describe("checkBasicAuth", () => {
-  it("accepts the right password with any username", () => {
-    expect(checkBasicAuth(basic("admin", "s3cret"), "s3cret")).toBe(true);
-    expect(checkBasicAuth(basic("", "s3cret"), "s3cret")).toBe(true);
-  });
-  it("accepts passwords containing colons", () => {
-    expect(checkBasicAuth(basic("a", "pa:ss"), "pa:ss")).toBe(true);
-  });
-  it("rejects wrong, missing or malformed credentials", () => {
-    expect(checkBasicAuth(basic("admin", "nope"), "s3cret")).toBe(false);
-    expect(checkBasicAuth(null, "s3cret")).toBe(false);
-    expect(checkBasicAuth("Bearer abc", "s3cret")).toBe(false);
-    expect(checkBasicAuth(`Basic ${Buffer.from("nocolon").toString("base64")}`, "s3cret")).toBe(false);
-  });
-  it("locks everything when no password is configured", () => {
-    expect(checkBasicAuth(basic("admin", ""), "")).toBe(false);
-    expect(checkBasicAuth(basic("admin", "x"), undefined)).toBe(false);
-  });
-});
 
 describe("parseSearch", () => {
   it.each([
