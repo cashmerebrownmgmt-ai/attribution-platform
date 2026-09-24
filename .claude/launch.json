@@ -35,6 +35,20 @@
         "dev"
       ],
       "port": 3200
+    },
+    {
+      "name": "app-demo",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "next",
+        "dev",
+        "-p",
+        "3100"
+      ],
+      "env": {
+        "AUTH_DEV_BYPASS": "1"
+      },
+      "port": 3100
     }
   ]
 }
