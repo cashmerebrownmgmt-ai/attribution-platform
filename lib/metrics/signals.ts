@@ -76,12 +76,23 @@ export function adSignal({ row, ctrDecay, ageDays, settings }: Input): Signal {
   }
 
   if (roas !== null && roas >= target * 1.2) {
+    // Only recommend more budget when the creative isn't already tiring.
+    if (ctrDecay !== null && ctrDecay <= -0.15) {
+      return {
+        verdict: "keep",
+        headline: "Beating target, but starting to tire",
+        reasons: [
+          `ROAS ${x(roas)} vs target ${x(target)}`,
+          `Click-through rate is down ${pctText(ctrDecay)} since launch: hold the budget and prepare a fresh variation`,
+        ],
+      };
+    }
     return {
       verdict: "scale",
       headline: "Beating your target",
       reasons: [
         `ROAS ${x(roas)} vs target ${x(target)}`,
-        ctrDecay !== null ? `CTR is holding steady (${ctrDecay >= 0 ? "+" : "−"}${pctText(ctrDecay)})` : "No sign of fatigue yet",
+        ctrDecay === null ? "No sign of fatigue yet" : Math.abs(ctrDecay) < 0.005 ? "Click-through rate is steady" : `Click-through rate is steady (${ctrDecay > 0 ? "up" : "down"} ${pctText(ctrDecay)})`,
         "Try raising the budget 15–20% and re-check in 3–4 days",
       ],
     };

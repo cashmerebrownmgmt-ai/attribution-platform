@@ -6,6 +6,8 @@ import { todayUtc } from "@/lib/dashboard/data";
 import { delta } from "@/lib/metrics/compute";
 import { AD_PLATFORMS, type Platform } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
+import { Suspense } from "react";
+import { ExportMenu } from "./ExportMenu";
 import { FilterBar } from "./FilterBar";
 import { Sparkline } from "./charts/Sparkline";
 
@@ -16,7 +18,7 @@ export const PLATFORM_COLORS: Record<Platform, string> = {
   microsoft: "var(--s4)",
 };
 
-export function PageHead({ title, subtitle, mode, action }: { title: string; subtitle?: string; mode: "live" | "demo"; action?: ReactNode }) {
+export function PageHead({ title, subtitle, mode, action, exportable = true }: { title: string; subtitle?: string; mode: "live" | "demo"; action?: ReactNode; exportable?: boolean }) {
   return (
     <div className={s.pageHead}>
       <div>
@@ -25,6 +27,11 @@ export function PageHead({ title, subtitle, mode, action }: { title: string; sub
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         {action}
+        {exportable && (
+          <Suspense>
+            <ExportMenu />
+          </Suspense>
+        )}
         <ModeSwitch mode={mode} />
       </div>
     </div>

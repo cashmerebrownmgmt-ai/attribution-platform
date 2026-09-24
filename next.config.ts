@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // The PDF renderer loads fonts and a layout engine at runtime; keep it out of the server bundle.
+  serverExternalPackages: ["@react-pdf/renderer"],
 };
 
 export default nextConfig;

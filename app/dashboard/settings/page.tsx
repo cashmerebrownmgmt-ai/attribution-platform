@@ -28,7 +28,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/dashboa
 
   return (
     <>
-      <PageHead title="Settings" subtitle="Targets, business profile, team and connections" mode={mode} />
+      <PageHead title="Settings" subtitle="Targets, business profile, team and connections" mode={mode} exportable={false} />
 
       {!settings && (
         <div className={s.callout}>
