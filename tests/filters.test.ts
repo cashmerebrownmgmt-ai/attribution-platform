@@ -41,3 +41,20 @@ describe("parseFilters", () => {
     expect(filterQuery(parseFilters({ from: "2026-09-01", to: "2026-09-05" }, TODAY))).toBe("?from=2026-09-01&to=2026-09-05");
   });
 });
+
+import { inspectHref, parseInspect } from "@/lib/dashboard/inspect";
+
+describe("inspect targets", () => {
+  it("parses valid targets and rejects junk", () => {
+    expect(parseInspect("platform:google")).toEqual({ level: "platform", key: "google" });
+    expect(parseInspect("campaign:meta:mc1001")).toEqual({ level: "campaign", key: "meta:mc1001" });
+    expect(parseInspect("ad:tiktok:123")).toEqual({ level: "ad", key: "tiktok:123" });
+    for (const bad of ["", "ad", "ad:myspace:1", "platform:meta:1", "campaign:meta", "root:meta:1", "ad:meta:1:2"]) {
+      expect(parseInspect(bad)).toBeNull();
+    }
+  });
+  it("builds links that keep filters", () => {
+    const f = parseFilters({ range: "7d" }, TODAY);
+    expect(inspectHref("/dashboard", f, "ad", "meta:a1")).toBe("/dashboard?range=7d&inspect=ad%3Ameta%3Aa1");
+  });
+});

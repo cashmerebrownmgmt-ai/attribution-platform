@@ -8,10 +8,12 @@ import s from "../dashboard.module.css";
 import { BarList } from "../_components/charts/BarList";
 import { LineChart } from "../_components/charts/LineChart";
 import { DataTable } from "../_components/DataTable";
+import { Inspector, Preview } from "../_components/Inspector";
 import { Card, Filters, PageHead, PLATFORM_COLORS, TableToggle } from "../_components/ui";
+import { inspectHref } from "@/lib/dashboard/inspect";
 
 export default async function ChannelsPage({ searchParams }: PageProps<"/dashboard/channels">) {
-  const { mode, data, filters: f } = await loadPage(searchParams);
+  const { mode, data, filters: f, params } = await loadPage(searchParams);
   const cur = data.settings.currency;
   const t = data.settings;
   const channels = byChannel(data, f);
@@ -98,6 +100,8 @@ export default async function ChannelsPage({ searchParams }: PageProps<"/dashboa
               id: r.key,
               name: PLATFORM_LABELS[r.platform],
               color: PLATFORM_COLORS[r.platform],
+              inspectHref: inspectHref("/dashboard/channels", f, "platform", r.key),
+              preview: <Preview data={data} f={f} level="platform" entityKey={r.key} />,
               values: { spend: r.spend, impressions: r.impressions, ctr: r.ctr, cpm: r.cpm, cpc: r.cpc, orders: r.orders, revenue: r.revenue, roas: r.roas, platformRoas: r.platformRoas, cpa: r.cpa, newCustomers: r.newCustomers },
             }))}
           />
@@ -108,6 +112,7 @@ export default async function ChannelsPage({ searchParams }: PageProps<"/dashboa
           </TableToggle>
         </Card>
       </div>
+      <Inspector data={data} f={f} params={params} path="/dashboard/channels" />
     </>
   );
 }

@@ -432,3 +432,71 @@
 }
 
 .menuLabel { padding: 8px 8px 2px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); border-top: 1px solid var(--ring); margin-top: 4px; }
+
+/* ── Hover previews & breakdown drawer ─────────────────────────────────────── */
+
+.hoverTrigger { display: inline-flex; min-width: 0; max-width: 100%; }
+.hoverCard {
+  position: fixed; z-index: 60; width: 320px; max-width: calc(100vw - 16px);
+  background: var(--surface); color: var(--ink); border: 1px solid var(--ring); border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22); padding: 12px; text-align: left; white-space: normal;
+  font-size: 12.5px; font-weight: 400; animation: fade 0.12s ease-out; pointer-events: auto;
+}
+.quick { display: grid; gap: 10px; }
+.quickHead { display: flex; gap: 10px; align-items: flex-start; }
+.quickThumb { width: 86px; flex: none; overflow: hidden; border-radius: 6px; }
+.quickThumb > div { width: 260px; zoom: 0.33; }
+.quickKicker { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; flex-wrap: wrap; }
+.quickName { font-weight: 650; font-size: 13.5px; line-height: 1.3; margin-top: 2px; }
+.quickVerdict { font-size: 12px; margin-top: 4px; font-weight: 600; }
+.quickStats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 8px; border-radius: 8px; background: var(--surface-2); font-size: 10.5px; }
+.quickStats b { display: block; font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.quickStats span { color: var(--muted); }
+.quickFoot { color: var(--muted); font-size: 11px; border-top: 1px solid var(--ring); padding-top: 8px; }
+
+.findings, .findingsCompact { display: grid; gap: 4px; }
+.findingsTitle { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.findings ul, .findingsCompact ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.findings li, .findingsCompact li { display: grid; grid-template-columns: 14px 1fr; gap: 6px; align-items: start; }
+.findings li { padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font-size: 12.5px; }
+.findingsCompact li { font-size: 12px; }
+.findingDetail { color: var(--ink-2); }
+
+.drawerWrap { position: fixed; inset: 0; z-index: 50; }
+.drawer {
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(720px, 100%); overflow: auto;
+  background: var(--surface); border-left: 1px solid var(--ring); box-shadow: -20px 0 50px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.2s ease-out;
+}
+@keyframes slideIn { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.drawerTitle { font-size: 16px; font-weight: 650; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; }
+.drawerBody { display: grid; gap: 18px; padding: 16px 18px 40px; }
+.drawerBody section { display: grid; gap: 6px; }
+.drawerAd { max-width: 420px; }
+.drawerKpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 12px; padding: 12px; border-radius: 10px; background: var(--surface-2); font-size: 11px; }
+.drawerKpis > div { display: grid; }
+.drawerKpis b { font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.drawerKpis span { color: var(--muted); }
+.svgFull { display: block; width: 100%; height: auto; overflow: visible; }
+
+.benchRows { display: grid; gap: 8px; }
+.benchRow { display: grid; grid-template-columns: minmax(120px, 170px) minmax(80px, 1fr) auto; gap: 10px; align-items: center; font-size: 12.5px; }
+.benchLabel { color: var(--ink); font-weight: 500; }
+.benchTrack { position: relative; height: 10px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.benchMid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--axis); }
+.benchFill { position: absolute; top: 0; bottom: 0; border-radius: 5px; opacity: 0.85; }
+.benchValue { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.inspectLink { all: unset; cursor: pointer; color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inspectLink:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.inspectLink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.rowAction { color: var(--muted); text-decoration: none; font-size: 11px; font-weight: 600; margin-left: 4px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--ring); white-space: nowrap; }
+.rowAction:hover { color: var(--ink); background: var(--surface-2); }
+
+@media (max-width: 760px) {
+  .drawerKpis { grid-template-columns: repeat(2, 1fr); }
+  .benchRow { grid-template-columns: 1fr; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer, .hoverCard { animation: none; }
+}

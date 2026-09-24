@@ -1,8 +1,11 @@
 "use client";
+import Link from "next/link";
+import type { ReactNode } from "react";
 import s from "../../dashboard.module.css";
+import { HoverPreview } from "../HoverPreview";
 import { fmt, type ValueKind } from "./fmt";
 
-export type BarItem = { key: string; label: string; value: number | null; color?: string; note?: string };
+export type BarItem = { key: string; label: string; value: number | null; color?: string; note?: string; href?: string; preview?: ReactNode };
 
 type Props = {
   items: BarItem[];
@@ -24,8 +27,8 @@ export function BarList({ items, kind, currency = "USD", target, label }: Props)
           <div key={item.key} role="listitem" className={s.barRow} title={item.note ? `${item.label}: ${item.note}` : undefined}>
             <span className={s.barLabel}>
               {item.color && <span className={s.swatch} style={{ background: item.color }} />}
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                {item.label}
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>
+                <BarName item={item} />
                 {item.note && <span className={s.barNote}>{item.note}</span>}
               </span>
             </span>
@@ -53,4 +56,15 @@ export function BarList({ items, kind, currency = "USD", target, label }: Props)
       )}
     </div>
   );
+}
+
+function BarName({ item }: { item: BarItem }) {
+  const name = item.href ? (
+    <Link href={item.href} scroll={false} className={s.inspectLink}>
+      {item.label}
+    </Link>
+  ) : (
+    <>{item.label}</>
+  );
+  return item.preview ? <HoverPreview content={item.preview}>{name}</HoverPreview> : name;
 }

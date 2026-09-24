@@ -8,7 +8,9 @@ import s from "./dashboard.module.css";
 import { BarList } from "./_components/charts/BarList";
 import { LineChart } from "./_components/charts/LineChart";
 import { DataTable } from "./_components/DataTable";
+import { Inspector, Preview } from "./_components/Inspector";
 import { Card, Filters, Kpi, PageHead, PLATFORM_COLORS, TableToggle } from "./_components/ui";
+import { inspectHref } from "@/lib/dashboard/inspect";
 
 /** Rolling mean over the last `n` points (smooths daily ROAS). */
 function rolling(num: number[], den: number[], n: number): (number | null)[] {
@@ -24,7 +26,7 @@ function rolling(num: number[], den: number[], n: number): (number | null)[] {
 }
 
 export default async function Overview({ searchParams }: PageProps<"/dashboard">) {
-  const { mode, data, filters: f } = await loadPage(searchParams);
+  const { mode, data, filters: f, params } = await loadPage(searchParams);
   const cur = data.settings.currency;
   const { current: k, previous: p } = compareKpis(data, f);
   const days = daily(data, f);
@@ -139,6 +141,8 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
                   value: r.roas,
                   color: PLATFORM_COLORS[r.platform],
                   note: `platform says ${roas(r.platformRoas)}`,
+                  href: inspectHref("/dashboard", f, "platform", r.key),
+                  preview: <Preview data={data} f={f} level="platform" entityKey={r.key} />,
                 }))}
                 target={t.targetRoas ? { value: t.targetRoas, label: `target ROAS ${roas(t.targetRoas)}` } : undefined}
               />
@@ -195,7 +199,7 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
               { key: "revenue", label: "Revenue", kind: "money" },
               { key: "roas", label: "ROAS", kind: "roas", target: t.targetRoas ? { value: t.targetRoas, better: "gte" } : undefined },
             ]}
-            rows={topAds.map((a) => ({ id: a.key, name: a.name, color: PLATFORM_COLORS[a.platform], values: { spend: a.spend, revenue: a.revenue, roas: a.roas } }))}
+            rows={topAds.map((a) => ({ id: a.key, name: a.name, color: PLATFORM_COLORS[a.platform], inspectHref: inspectHref("/dashboard", f, "ad", a.key), preview: <Preview data={data} f={f} level="ad" entityKey={a.key} />, values: { spend: a.spend, revenue: a.revenue, roas: a.roas } }))}
           />
         </Card>
         <Card title="Needs attention" sub={`Spending ≥ ${money(minSpend, cur)} below break-even ROAS ${roas(t.breakevenRoas ?? 1)}`}>
@@ -209,10 +213,11 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
               { key: "revenue", label: "Revenue", kind: "money" },
               { key: "roas", label: "ROAS", kind: "roas", target: { value: t.breakevenRoas ?? 1, better: "gte" } },
             ]}
-            rows={attention.map((a) => ({ id: a.key, name: a.name, color: PLATFORM_COLORS[a.platform], values: { spend: a.spend, revenue: a.revenue, roas: a.roas } }))}
+            rows={attention.map((a) => ({ id: a.key, name: a.name, color: PLATFORM_COLORS[a.platform], inspectHref: inspectHref("/dashboard", f, "ad", a.key), preview: <Preview data={data} f={f} level="ad" entityKey={a.key} />, values: { spend: a.spend, revenue: a.revenue, roas: a.roas } }))}
           />
         </Card>
       </div>
+      <Inspector data={data} f={f} params={params} path="/dashboard" />
     </>
   );
 }

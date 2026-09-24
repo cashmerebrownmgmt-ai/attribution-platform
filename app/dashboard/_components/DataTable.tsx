@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
+import { HoverPreview } from "./HoverPreview";
 import s from "../dashboard.module.css";
 import { fmt, type ValueKind } from "./charts/fmt";
 
@@ -16,6 +17,12 @@ export type Row = {
   id: string;
   name: string;
   href?: string;
+  /** Opens the breakdown drawer; the name becomes the link. */
+  inspectHref?: string;
+  /** Quick-preview card shown on hover/focus of the name. */
+  preview?: ReactNode;
+  /** Secondary "drill in" link shown after the name. */
+  drill?: { href: string; label: string };
   color?: string;
   badge?: string;
   values: Record<string, number | string | null>;
@@ -71,7 +78,12 @@ export function DataTable({ columns, rows, currency = "USD", defaultSort, nameLa
               <td>
                 <span className={s.nameCell}>
                   {r.color && <span className={s.swatch} style={{ background: r.color }} />}
-                  {r.href ? <Link href={r.href}>{r.name}</Link> : <span>{r.name}</span>}
+                  <NameLink row={r} />
+                  {r.drill && (
+                    <Link className={s.rowAction} href={r.drill.href}>
+                      {r.drill.label} ›
+                    </Link>
+                  )}
                   {r.badge && <span className={s.statusChip}>{r.badge}</span>}
                 </span>
               </td>
@@ -95,4 +107,16 @@ export function DataTable({ columns, rows, currency = "USD", defaultSort, nameLa
       </table>
     </div>
   );
+}
+
+function NameLink({ row }: { row: Row }) {
+  const href = row.inspectHref ?? row.href;
+  const link = href ? (
+    <Link href={href} scroll={row.inspectHref ? false : undefined} className={row.inspectHref ? s.inspectLink : undefined}>
+      {row.name}
+    </Link>
+  ) : (
+    <span>{row.name}</span>
+  );
+  return row.preview ? <HoverPreview content={row.preview}>{link}</HoverPreview> : link;
 }

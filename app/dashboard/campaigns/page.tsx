@@ -6,7 +6,9 @@ import { performance, type Level } from "@/lib/metrics/compute";
 import s from "../dashboard.module.css";
 import { BarList } from "../_components/charts/BarList";
 import { DataTable } from "../_components/DataTable";
+import { Inspector, Preview } from "../_components/Inspector";
 import { Card, Filters, PageHead, PLATFORM_COLORS } from "../_components/ui";
+import { inspectHref } from "@/lib/dashboard/inspect";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -34,6 +36,11 @@ export default async function CampaignsPage({ searchParams }: PageProps<"/dashbo
   const rows = performance(data, { ...f, platform: group?.platform ?? campaign?.platform ?? f.platform }, level, parent);
 
   const levelName = level === "campaign" ? "Campaign" : level === "adGroup" ? "Ad set" : "Ad";
+  // Page params that should survive opening/closing the breakdown drawer.
+  const keep: Record<string, string | null> = { campaign: campaignKey ?? null, group: groupKey ?? null, level: one(params.level) === "ad" && !campaign && !group ? "ad" : null };
+  const inspect = (key: string) => inspectHref("/dashboard/campaigns", f, level, key, keep);
+  const drill = (key: string) =>
+    level === "campaign" ? { href: hrefFor(key), label: "Ad sets" } : level === "adGroup" ? { href: hrefFor(key), label: "Ads" } : { href: hrefFor(key), label: "Creative" };
   const hrefFor = (key: string) =>
     level === "campaign" ? `/dashboard/campaigns${filterQuery(f, { campaign: key, level: null })}` : level === "adGroup" ? `/dashboard/campaigns${filterQuery(f, { group: key })}` : `/dashboard/creatives${filterQuery(f, { ad: key })}`;
 
@@ -89,12 +96,14 @@ export default async function CampaignsPage({ searchParams }: PageProps<"/dashbo
                 value: r.roas,
                 color: PLATFORM_COLORS[r.platform],
                 note: `${PLATFORM_LABELS[r.platform]} · spend ${Math.round(r.spend).toLocaleString()}`,
+                href: inspect(r.key),
+                preview: <Preview data={data} f={f} level={level} entityKey={r.key} />,
               }))}
               target={t.targetRoas ? { value: t.targetRoas, label: `target ROAS ${roas(t.targetRoas)}` } : undefined}
             />
           )}
         </Card>
-        <Card title={`${levelName}s`} sub="Click a row to drill in. Green/red compare against your targets.">
+        <Card title={`${levelName}s`} sub="Hover a name for a quick read, click it for the full breakdown. Green/red compare against your targets.">
           <DataTable
             nameLabel={levelName}
             currency={cur}
@@ -114,7 +123,9 @@ export default async function CampaignsPage({ searchParams }: PageProps<"/dashbo
             rows={rows.map((r) => ({
               id: r.key,
               name: r.name,
-              href: hrefFor(r.key),
+              inspectHref: inspect(r.key),
+              preview: <Preview data={data} f={f} level={level} entityKey={r.key} />,
+              drill: drill(r.key),
               color: PLATFORM_COLORS[r.platform],
               badge: r.status !== "active" ? r.status : undefined,
               values: { spend: r.spend, impressions: r.impressions, ctr: r.ctr, cpc: r.cpc, orders: r.orders, revenue: r.revenue, roas: r.roas, platformRoas: r.platformRoas, cpa: r.cpa, newCustomers: r.newCustomers },
@@ -122,6 +133,7 @@ export default async function CampaignsPage({ searchParams }: PageProps<"/dashbo
           />
         </Card>
       </div>
+      <Inspector data={data} f={f} params={params} path="/dashboard/campaigns" keep={keep} />
     </>
   );
 }

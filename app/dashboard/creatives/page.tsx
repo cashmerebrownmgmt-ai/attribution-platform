@@ -9,6 +9,10 @@ import s from "../dashboard.module.css";
 import { AdPreview } from "../_components/AdPreview";
 import { LineChart } from "../_components/charts/LineChart";
 import { LightboxKeys } from "../_components/LightboxKeys";
+import { FindingList } from "../_components/Breakdown";
+import { Inspector } from "../_components/Inspector";
+import { entityInfo } from "@/lib/dashboard/entity";
+import { inspectHref } from "@/lib/dashboard/inspect";
 import { Card, Filters, PageHead, PLATFORM_COLORS } from "../_components/ui";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -61,6 +65,7 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
   const selIdx = items.findIndex((i) => i.row.key === one(params.ad));
   const selected = selIdx >= 0 ? items[selIdx] : null;
   const curve = selected ? fatigue(data, f.model, selected.ad.platform, selected.ad.id) : [];
+  const analysis = selected ? entityInfo(data, f, "ad", selected.row.key).analysis : null;
 
   return (
     <>
@@ -151,6 +156,15 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
                     ))}
                   </ul>
                 </div>
+                {analysis && (
+                  <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+                    <FindingList title="What's helping" items={analysis.findings.filter((x) => x.effect === "helping").slice(0, 4)} empty="Nothing is clearly helping yet." />
+                    <FindingList title="What's hurting" items={analysis.findings.filter((x) => x.effect === "hurting").slice(0, 4)} empty="Nothing is clearly hurting." />
+                    <Link className={`${s.button} ${s.buttonPrimary}`} style={{ justifySelf: "start" }} href={inspectHref("/dashboard/creatives", f, "ad", selected.row.key, base)} scroll={false}>
+                      Full breakdown ›
+                    </Link>
+                  </div>
+                )}
                 <div className={s.statGrid}>
                   <div><b>{roas(selected.row.roas)}</b><span>ROAS</span></div>
                   <div><b>{roas(selected.row.platformRoas)}</b><span>Platform ROAS</span></div>
@@ -181,6 +195,7 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
           </div>
         </div>
       )}
+      <Inspector data={data} f={f} params={params} path="/dashboard/creatives" keep={base} />
     </>
   );
 }
