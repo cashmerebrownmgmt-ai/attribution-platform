@@ -57,8 +57,8 @@ function data(orders: OrderFact[]): DashboardData {
       { platform: "google", id: "g2", campaignId: "c2", name: "Terms", status: "active", dailyBudget: null },
     ],
     ads: [
-      { platform: "meta", id: "a1", adGroupId: "g1", campaignId: "c1", name: "UGC video", status: "active", format: "video", headline: null, body: null, thumbnailUrl: null, landingUrl: null, launchedAt: "2026-08-01T00:00:00Z" },
-      { platform: "google", id: "a2", adGroupId: "g2", campaignId: "c2", name: "RSA", status: "active", format: "text", headline: null, body: null, thumbnailUrl: null, landingUrl: null, launchedAt: "2026-08-01T00:00:00Z" },
+      { platform: "meta", id: "a1", adGroupId: "g1", campaignId: "c1", name: "UGC video", status: "active", format: "video", headline: null, body: null, thumbnailUrl: null, videoUrl: null, cta: null, landingUrl: null, launchedAt: "2026-08-01T00:00:00Z" },
+      { platform: "google", id: "a2", adGroupId: "g2", campaignId: "c2", name: "RSA", status: "active", format: "text", headline: null, body: null, thumbnailUrl: null, videoUrl: null, cta: null, landingUrl: null, launchedAt: "2026-08-01T00:00:00Z" },
     ],
     insights: [
       { platform: "meta", adId: "a1", date: "2026-09-01", spend: 100, impressions: 10_000, clicks: 100, platformConversions: 3, platformRevenue: 300 },

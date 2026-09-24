@@ -1,16 +1,19 @@
 import Link from "next/link";
 import { filterQuery, PLATFORM_LABELS } from "@/lib/dashboard/filters";
-import { money, pct, roas, signedPct } from "@/lib/dashboard/format";
+import { money, num, pct, roas, signedPct } from "@/lib/dashboard/format";
 import { loadPage } from "@/lib/dashboard/page";
 import { ctrDecay, fatigue, performance, type PerfRow } from "@/lib/metrics/compute";
 import { adSignal, VERDICT_LABELS, type Signal, type Verdict } from "@/lib/metrics/signals";
 import type { Ad } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
+import { AdPreview } from "../_components/AdPreview";
 import { LineChart } from "../_components/charts/LineChart";
+import { LightboxKeys } from "../_components/LightboxKeys";
 import { Card, Filters, PageHead, PLATFORM_COLORS } from "../_components/ui";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
+const VERDICTS: Verdict[] = ["scale", "keep", "watch", "refresh", "pause", "learning"];
 const VERDICT_STYLE: Record<Verdict, { color: string; icon: string }> = {
   scale: { color: "var(--good-text)", icon: "▲" },
   keep: { color: "var(--good-text)", icon: "✓" },
@@ -19,23 +22,6 @@ const VERDICT_STYLE: Record<Verdict, { color: string; icon: string }> = {
   pause: { color: "var(--bad-text)", icon: "■" },
   learning: { color: "var(--muted)", icon: "…" },
 };
-
-function Thumb({ ad }: { ad: Ad }) {
-  const url = ad.thumbnailUrl;
-  const hue = url?.startsWith("demo:") ? Number(url.slice(5)) : null;
-  const style =
-    hue !== null
-      ? { background: `linear-gradient(160deg, hsl(${hue} 55% 42%), hsl(${(hue + 40) % 360} 60% 22%))` }
-      : url
-        ? { backgroundImage: `url(${JSON.stringify(url)})`, backgroundSize: "cover", backgroundPosition: "center" }
-        : { background: "var(--surface-2)" };
-  return (
-    <div className={s.thumb} style={style}>
-      <span className={s.thumbFormat}>{ad.format ?? "ad"}</span>
-      <span className={s.thumbHeadline}>{ad.headline ?? ad.name}</span>
-    </div>
-  );
-}
 
 function VerdictFlag({ signal }: { signal: Signal }) {
   const st = VERDICT_STYLE[signal.verdict];
@@ -46,14 +32,16 @@ function VerdictFlag({ signal }: { signal: Signal }) {
   );
 }
 
+type Item = { row: PerfRow; ad: Ad; decay: number | null; signal: Signal };
+
 export default async function CreativesPage({ searchParams }: PageProps<"/dashboard/creatives">) {
   const { mode, data, filters: f, params } = await loadPage(searchParams);
   const cur = data.settings.currency;
-  const rows = performance(data, f, "ad");
+  const brand = data.settings.businessName ?? "Your brand";
   const adIndex = new Map(data.ads.map((a) => [`${a.platform}:${a.id}`, a]));
   const endMs = Date.parse(`${f.range.to}T23:59:59Z`);
 
-  const items = rows
+  const all: Item[] = performance(data, f, "ad")
     .map((row) => {
       const ad = adIndex.get(row.key);
       if (!ad) return null;
@@ -61,79 +49,53 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
       const ageDays = ad.launchedAt ? Math.max(0, Math.floor((endMs - Date.parse(ad.launchedAt)) / 86_400_000)) : null;
       return { row, ad, decay, signal: adSignal({ row, ctrDecay: decay, ageDays, settings: data.settings }) };
     })
-    .filter((x): x is { row: PerfRow; ad: Ad; decay: number | null; signal: Signal } => x !== null)
+    .filter((x): x is Item => x !== null)
     .sort((a, b) => (b.row.roas ?? -1) - (a.row.roas ?? -1));
 
-  const selectedKey = one(params.ad);
-  const selected = items.find((i) => i.row.key === selectedKey) ?? null;
+  const verdictFilter = VERDICTS.find((v) => v === one(params.verdict)) ?? null;
+  const items = verdictFilter ? all.filter((i) => i.signal.verdict === verdictFilter) : all;
+  const counts = all.reduce<Partial<Record<Verdict, number>>>((m, i) => ({ ...m, [i.signal.verdict]: (m[i.signal.verdict] ?? 0) + 1 }), {});
+
+  const base = { verdict: verdictFilter };
+  const hrefFor = (key: string | null) => `/dashboard/creatives${filterQuery(f, { ...base, ad: key })}`;
+  const selIdx = items.findIndex((i) => i.row.key === one(params.ad));
+  const selected = selIdx >= 0 ? items[selIdx] : null;
   const curve = selected ? fatigue(data, f.model, selected.ad.platform, selected.ad.id) : [];
-  const counts = items.reduce<Partial<Record<Verdict, number>>>((m, i) => ({ ...m, [i.signal.verdict]: (m[i.signal.verdict] ?? 0) + 1 }), {});
 
   return (
     <>
-      <PageHead title="Creatives" subtitle="Which ads are working, which are tired, and which to cut" mode={mode} />
+      <PageHead title="Creatives" subtitle="Every ad as your customers see it, ranked by return" mode={mode} />
       <Filters f={f} />
 
-      {items.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
-          {(["scale", "keep", "watch", "refresh", "pause", "learning"] as Verdict[]).map((v) =>
-            counts[v] ? (
-              <span key={v} className={s.flag} style={{ color: VERDICT_STYLE[v].color, padding: "4px 10px", fontSize: 12 }}>
-                <span aria-hidden="true">{VERDICT_STYLE[v].icon}</span> {counts[v]} {VERDICT_LABELS[v].toLowerCase()}
-              </span>
-            ) : null,
-          )}
-        </div>
-      )}
+      <div className={s.chips} role="group" aria-label="Filter by verdict">
+        <Link href={`/dashboard/creatives${filterQuery(f)}`} className={`${s.chip} ${!verdictFilter ? s.chipOn : ""}`} scroll={false}>
+          All <span className={s.muted}>{all.length}</span>
+        </Link>
+        {VERDICTS.map((v) =>
+          counts[v] ? (
+            <Link key={v} href={`/dashboard/creatives${filterQuery(f, { verdict: v })}`} className={`${s.chip} ${verdictFilter === v ? s.chipOn : ""}`} scroll={false}>
+              <span style={{ color: VERDICT_STYLE[v].color }} aria-hidden="true">{VERDICT_STYLE[v].icon}</span> {VERDICT_LABELS[v]}{" "}
+              <span className={s.muted}>{counts[v]}</span>
+            </Link>
+          ) : null,
+        )}
+      </div>
 
-      {selected && (
-        <div className={s.grid2}>
-          <Card title={selected.ad.name} sub={`${PLATFORM_LABELS[selected.ad.platform]} · launched ${selected.ad.launchedAt?.slice(0, 10) ?? "—"}`} action={<Link className={s.button} href={`/dashboard/creatives${filterQuery(f)}`}>Close</Link>}>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(120px, 180px) 1fr", gap: 16 }}>
-              <Thumb ad={selected.ad} />
-              <div>
-                <VerdictFlag signal={selected.signal} />
-                <h3 style={{ margin: "10px 0 6px", fontSize: 16 }}>{selected.signal.headline}</h3>
-                <ul style={{ margin: 0, paddingLeft: 18, color: "var(--ink-2)" }}>
-                  {selected.signal.reasons.map((r) => (
-                    <li key={r}>{r}</li>
-                  ))}
-                </ul>
-                <div className={s.creativeStats} style={{ marginTop: 14 }}>
-                  <div><b>{roas(selected.row.roas)}</b><span>ROAS</span></div>
-                  <div><b>{money(selected.row.spend, cur, { compact: true })}</b><span>Spend</span></div>
-                  <div><b>{pct(selected.row.ctr, 2)}</b><span>CTR</span></div>
-                  <div><b>{money(selected.row.revenue, cur, { compact: true })}</b><span>Revenue</span></div>
-                  <div><b>{money(selected.row.cpa, cur)}</b><span>CPA</span></div>
-                  <div><b>{signedPct(selected.decay)}</b><span>CTR change</span></div>
-                </div>
-              </div>
-            </div>
-            {selected.ad.body && <p className={s.cardSub} style={{ fontSize: 13, marginTop: 12 }}>Copy: “{selected.ad.body}”</p>}
-          </Card>
-          <Card title="Fatigue curve" sub="Click-through rate by week since launch (all time)">
-            {curve.length < 2 ? (
-              <div className={s.empty}>Not enough history yet.</div>
-            ) : (
-              <LineChart label="CTR by week since launch" dates={curve.map((c) => `Week ${c.week + 1}`)} xFormat="raw" kind="pct" series={[{ name: "CTR", color: PLATFORM_COLORS[selected.ad.platform], values: curve.map((c) => c.ctr) }]} height={220} />
-            )}
-          </Card>
-        </div>
-      )}
-
-      <Card title="All creatives" sub="Ranked by ROAS for the selected range. Click one for details.">
-        {items.length === 0 ? (
+      {items.length === 0 ? (
+        <Card>
           <div className={s.empty}>No ads with spend in this range.</div>
-        ) : (
-          <div className={s.creativeGrid}>
-            {items.map(({ row, ad, signal }) => (
-              <Link key={row.key} href={`/dashboard/creatives${filterQuery(f, { ad: row.key })}`} className={s.creative} scroll={false} aria-current={row.key === selectedKey ? "true" : undefined}>
-                <Thumb ad={ad} />
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                  <span style={{ fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
-                    <span className={s.swatch} style={{ background: PLATFORM_COLORS[ad.platform] }} />
-                    {ad.name}
-                  </span>
+        </Card>
+      ) : (
+        <div className={s.creativeGrid}>
+          {items.map(({ row, ad, signal }) => (
+            <Link key={row.key} href={hrefFor(row.key)} className={s.creative} scroll={false} aria-label={`Open ${ad.name}`}>
+              <div className={s.creativeFrame}>
+                <AdPreview ad={ad} brand={brand} />
+              </div>
+              <div className={s.creativeMeta}>
+                <div className={s.creativeName}>
+                  <span className={s.swatch} style={{ background: PLATFORM_COLORS[ad.platform] }} />
+                  <span>{ad.name}</span>
                 </div>
                 <VerdictFlag signal={signal} />
                 <div className={s.creativeStats}>
@@ -141,11 +103,84 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
                   <div><b>{money(row.spend, cur, { compact: true })}</b><span>Spend</span></div>
                   <div><b>{pct(row.ctr, 2)}</b><span>CTR</span></div>
                 </div>
-              </Link>
-            ))}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {selected && (
+        <div className={s.lightbox} role="dialog" aria-modal="true" aria-label={selected.ad.name}>
+          <LightboxKeys
+            close={hrefFor(null)}
+            prev={selIdx > 0 ? hrefFor(items[selIdx - 1].row.key) : null}
+            next={selIdx < items.length - 1 ? hrefFor(items[selIdx + 1].row.key) : null}
+          />
+          <Link href={hrefFor(null)} className={s.lightboxBackdrop} scroll={false} aria-label="Close" tabIndex={-1} />
+          <div className={s.lightboxPanel}>
+            <div className={s.lightboxBar}>
+              <span className={s.muted}>
+                {selIdx + 1} of {items.length}
+              </span>
+              <span style={{ display: "flex", gap: 6 }}>
+                {selIdx > 0 && <Link className={s.button} href={hrefFor(items[selIdx - 1].row.key)} scroll={false}>← Previous</Link>}
+                {selIdx < items.length - 1 && <Link className={s.button} href={hrefFor(items[selIdx + 1].row.key)} scroll={false}>Next →</Link>}
+                <Link className={s.button} href={hrefFor(null)} scroll={false} autoFocus>
+                  Close ✕
+                </Link>
+              </span>
+            </div>
+            <div className={s.lightboxBody}>
+              <div className={s.lightboxMedia}>
+                <AdPreview ad={selected.ad} brand={brand} size="large" />
+              </div>
+              <div className={s.lightboxInfo}>
+                <div className={s.creativeName} style={{ fontSize: 15 }}>
+                  <span className={s.swatch} style={{ background: PLATFORM_COLORS[selected.ad.platform] }} />
+                  <span>{selected.ad.name}</span>
+                </div>
+                <div className={s.cardSub}>
+                  {PLATFORM_LABELS[selected.ad.platform]} · {selected.ad.format ?? "ad"} · launched {selected.ad.launchedAt?.slice(0, 10) ?? "—"}
+                </div>
+                <div style={{ marginTop: 12 }}>
+                  <VerdictFlag signal={selected.signal} />
+                  <div style={{ fontWeight: 650, margin: "8px 0 4px" }}>{selected.signal.headline}</div>
+                  <ul className={s.reasons}>
+                    {selected.signal.reasons.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className={s.statGrid}>
+                  <div><b>{roas(selected.row.roas)}</b><span>ROAS</span></div>
+                  <div><b>{roas(selected.row.platformRoas)}</b><span>Platform ROAS</span></div>
+                  <div><b>{money(selected.row.spend, cur)}</b><span>Spend</span></div>
+                  <div><b>{money(selected.row.revenue, cur)}</b><span>Revenue</span></div>
+                  <div><b>{num(selected.row.orders)}</b><span>Orders</span></div>
+                  <div><b>{money(selected.row.cpa, cur)}</b><span>CPA</span></div>
+                  <div><b>{pct(selected.row.ctr, 2)}</b><span>CTR</span></div>
+                  <div><b>{money(selected.row.cpm, cur, { cents: true })}</b><span>CPM</span></div>
+                  <div><b>{signedPct(selected.decay)}</b><span>CTR since launch</span></div>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <div className={s.cardTitle}>Fatigue curve</div>
+                  <div className={s.cardSub} style={{ marginBottom: 6 }}>Click-through rate by week since launch</div>
+                  {curve.length < 2 ? (
+                    <div className={s.empty}>Not enough history yet.</div>
+                  ) : (
+                    <LineChart label="CTR by week since launch" dates={curve.map((c) => `Week ${c.week + 1}`)} xFormat="raw" kind="pct" height={160} series={[{ name: "CTR", color: PLATFORM_COLORS[selected.ad.platform], values: curve.map((c) => c.ctr) }]} />
+                  )}
+                </div>
+                {selected.ad.landingUrl && (
+                  <p className={s.cardSub} style={{ marginTop: 10, wordBreak: "break-all" }}>
+                    Landing page: {selected.ad.landingUrl}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-      </Card>
+        </div>
+      )}
     </>
   );
 }

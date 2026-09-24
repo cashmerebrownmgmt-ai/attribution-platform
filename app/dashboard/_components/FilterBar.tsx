@@ -2,11 +2,15 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import s from "../dashboard.module.css";
+import { DateRangePicker } from "./DateRangePicker";
 
 type Option = { value: string; label: string };
 
 type Props = {
   preset: string;
+  from: string;
+  to: string;
+  today: string;
   model: string;
   platform: string;
   rangeText: string;
@@ -17,33 +21,45 @@ type Props = {
 };
 
 /** One row of filters above the page. Changes go into the URL so views are shareable. */
-export function FilterBar({ preset, model, platform, rangeText, presets, models, platforms, showPlatform = true }: Props) {
+export function FilterBar({ preset, from, to, today, model, platform, rangeText, presets, models, platforms, showPlatform = true }: Props) {
   const router = useRouter();
   const path = usePathname();
   const params = useSearchParams();
   const [pending, start] = useTransition();
 
-  const set = (key: string, value: string, defaults: string) => {
+  const go = (mutate: (q: URLSearchParams) => void) => {
     const q = new URLSearchParams(params.toString());
-    if (key === "range") {
-      q.delete("from");
-      q.delete("to");
-    }
-    if (value === defaults) q.delete(key);
-    else q.set(key, value);
+    mutate(q);
     start(() => router.replace(`${path}${q.toString() ? `?${q}` : ""}`, { scroll: false }));
   };
+  const set = (key: string, value: string, fallback: string) =>
+    go((q) => (value === fallback ? q.delete(key) : q.set(key, value)));
 
   return (
     <div className={`${s.filters} ${pending ? s.filtersBusy : ""}`} role="group" aria-label="Filters" aria-busy={pending}>
-      <select className={s.select} aria-label="Date range" value={preset === "custom" ? "" : preset} onChange={(e) => set("range", e.target.value, "30d")}>
-        {preset === "custom" && <option value="">Custom range</option>}
-        {presets.map((p) => (
-          <option key={p.value} value={p.value}>
-            {p.label}
-          </option>
-        ))}
-      </select>
+      <DateRangePicker
+        preset={preset}
+        from={from}
+        to={to}
+        today={today}
+        label={rangeText}
+        presets={presets}
+        onPreset={(id) =>
+          go((q) => {
+            q.delete("from");
+            q.delete("to");
+            if (id === "30d") q.delete("range");
+            else q.set("range", id);
+          })
+        }
+        onCustom={(f, t) =>
+          go((q) => {
+            q.delete("range");
+            q.set("from", f);
+            q.set("to", t);
+          })
+        }
+      />
       <select className={s.select} aria-label="Attribution model" value={model} onChange={(e) => set("model", e.target.value, "last_non_direct")}>
         {models.map((m) => (
           <option key={m.value} value={m.value}>
@@ -60,7 +76,6 @@ export function FilterBar({ preset, model, platform, rangeText, presets, models,
           ))}
         </select>
       )}
-      <span className={s.rangeLabel}>{rangeText}</span>
     </div>
   );
 }

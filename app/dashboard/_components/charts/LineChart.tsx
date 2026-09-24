@@ -23,7 +23,7 @@ type Props = {
 const PAD = { top: 12, right: 12, bottom: 26, left: 52 };
 
 /** Line/area time series with crosshair + tooltip, one shared y-axis. */
-export function LineChart({ dates, series, kind, currency = "USD", height = 240, reference, xFormat = "date", label }: Props) {
+export function LineChart({ dates, series, kind, currency = "USD", height = 200, reference, xFormat = "date", label }: Props) {
   const xShort = (d: string) => (xFormat === "date" ? shortDate(d) : d);
   const xLong = (d: string) => (xFormat === "date" ? longDate(d) : d);
   const [ref, width] = useWidth<HTMLDivElement>();

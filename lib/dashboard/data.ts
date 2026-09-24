@@ -177,6 +177,8 @@ async function loadLive(): Promise<DashboardData> {
       headline: str(a.headline),
       body: str(a.body),
       thumbnailUrl: str(a.thumbnail_url),
+      videoUrl: str(a.video_url),
+      cta: str(a.cta),
       landingUrl: str(a.landing_url),
       launchedAt: str(a.launched_at),
     })),

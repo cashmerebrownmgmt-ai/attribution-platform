@@ -60,6 +60,10 @@ export type Ad = {
   headline: string | null;
   body: string | null;
   thumbnailUrl: string | null;
+  /** Playable video file for video ads, when the platform provides one. */
+  videoUrl: string | null;
+  /** Call-to-action button text, e.g. "Shop Now". */
+  cta: string | null;
   landingUrl: string | null;
   launchedAt: string | null; // ISO date
 };

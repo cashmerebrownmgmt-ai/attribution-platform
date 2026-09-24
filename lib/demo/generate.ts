@@ -248,6 +248,8 @@ export function generateDemo({ endDay, days = 200, seed = 42 }: DemoOptions): Da
             headline: as.headline,
             body: as.body,
             thumbnailUrl: `demo:${hue}`,
+            videoUrl: null,
+            cta: ps.platform === "tiktok" ? "Shop now" : as.format === "video" ? "Shop Now" : pick(r, ["Shop Now", "Learn More", "Shop Now"]),
             landingUrl: as.missingUtms
               ? "https://demo-store.example/products/heavyweight-tee"
               : `https://demo-store.example/products/heavyweight-tee?utm_source=${ps.platform}&utm_medium=${ps.platform === "google" ? "cpc" : "paid_social"}&utm_campaign=${cid}&utm_content=${aid}`,
@@ -364,7 +366,7 @@ export function generateDemo({ endDay, days = 200, seed = 42 }: DemoOptions): Da
     adGroups,
     ads: ads.map((a): Ad => ({
       platform: a.platform, id: a.id, adGroupId: a.adGroupId, campaignId: a.campaignId, name: a.name, status: a.status,
-      format: a.format, headline: a.headline, body: a.body, thumbnailUrl: a.thumbnailUrl, landingUrl: a.landingUrl, launchedAt: a.launchedAt,
+      format: a.format, headline: a.headline, body: a.body, thumbnailUrl: a.thumbnailUrl, videoUrl: null, cta: a.cta, landingUrl: a.landingUrl, launchedAt: a.launchedAt,
     })),
     insights,
     health: demoHealth(r, endDay, orders),

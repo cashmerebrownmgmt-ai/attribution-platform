@@ -4,11 +4,14 @@ import { addDays, type DateRange, type Filters } from "../metrics/compute";
 import { AD_PLATFORMS, type Platform } from "../metrics/types";
 
 export const PRESETS = [
-  { id: "7d", label: "Last 7 days", days: 7 },
-  { id: "14d", label: "Last 14 days", days: 14 },
-  { id: "30d", label: "Last 30 days", days: 30 },
-  { id: "90d", label: "Last 90 days", days: 90 },
-  { id: "mtd", label: "Month to date", days: null },
+  { id: "today", label: "Today" },
+  { id: "yesterday", label: "Yesterday" },
+  { id: "7d", label: "Last 7 days" },
+  { id: "14d", label: "Last 14 days" },
+  { id: "30d", label: "Last 30 days" },
+  { id: "90d", label: "Last 90 days" },
+  { id: "mtd", label: "This month" },
+  { id: "last_month", label: "Last month" },
 ] as const;
 export type PresetId = (typeof PRESETS)[number]["id"];
 
@@ -50,14 +53,29 @@ export function parseFilters(params: Params, today: string): ParsedFilters {
   }
 
   const presetParam = one(params.range) as PresetId | undefined;
-  const preset = PRESETS.find((p) => p.id === presetParam) ?? PRESETS[2];
+  const preset = PRESETS.find((p) => p.id === presetParam) ?? PRESETS.find((p) => p.id === "30d")!;
   return { range: presetRange(preset.id, today), model, platform, preset: preset.id };
 }
 
 export function presetRange(id: PresetId, today: string): DateRange {
-  if (id === "mtd") return { from: `${today.slice(0, 8)}01`, to: today };
-  const days = PRESETS.find((p) => p.id === id)?.days ?? 30;
-  return { from: addDays(today, -(days - 1)), to: today };
+  switch (id) {
+    case "today":
+      return { from: today, to: today };
+    case "yesterday": {
+      const y = addDays(today, -1);
+      return { from: y, to: y };
+    }
+    case "mtd":
+      return { from: `${today.slice(0, 8)}01`, to: today };
+    case "last_month": {
+      const lastDay = addDays(`${today.slice(0, 8)}01`, -1);
+      return { from: `${lastDay.slice(0, 8)}01`, to: lastDay };
+    }
+    default: {
+      const days = Number(id.replace("d", ""));
+      return { from: addDays(today, -(days - 1)), to: today };
+    }
+  }
 }
 
 /** Build a query string for links that keep the current filters. */

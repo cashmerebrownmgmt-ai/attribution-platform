@@ -22,7 +22,7 @@ type Props = {
 const PAD = { top: 10, right: 8, bottom: 24, left: 44 };
 
 /** Column chart (optionally stacked) with per-column hover tooltip and a 2px surface gap between segments. */
-export function Columns({ labels, series, kind, currency = "USD", height = 200, labelEvery = 1, label }: Props) {
+export function Columns({ labels, series, kind, currency = "USD", height = 180, labelEvery = 1, label }: Props) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
 

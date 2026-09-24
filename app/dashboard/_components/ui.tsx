@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { MODELS } from "@/lib/attribution";
 import { MODEL_LABELS, PLATFORM_LABELS, PRESETS, type ParsedFilters } from "@/lib/dashboard/filters";
-import { longDate, signedPct } from "@/lib/dashboard/format";
+import { shortDate, signedPct } from "@/lib/dashboard/format";
+import { todayUtc } from "@/lib/dashboard/data";
 import { delta } from "@/lib/metrics/compute";
 import { AD_PLATFORMS, type Platform } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
@@ -50,7 +51,10 @@ export function Filters({ f, showPlatform = true }: { f: ParsedFilters; showPlat
       preset={f.preset}
       model={f.model}
       platform={f.platform}
-      rangeText={`${longDate(f.range.from)} – ${longDate(f.range.to)}`}
+      from={f.range.from}
+      to={f.range.to}
+      today={todayUtc()}
+      rangeText={f.range.from === f.range.to ? shortDate(f.range.from) : `${shortDate(f.range.from)} – ${shortDate(f.range.to)}`}
       presets={PRESETS.map((p) => ({ value: p.id, label: p.label }))}
       models={MODELS.map((m) => ({ value: m, label: MODEL_LABELS[m] }))}
       platforms={[{ value: "all", label: "All platforms" }, ...AD_PLATFORMS.map((p) => ({ value: p, label: PLATFORM_LABELS[p] }))]}

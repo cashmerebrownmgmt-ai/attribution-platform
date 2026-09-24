@@ -1,0 +1,80 @@
+/* Platform-style ad previews. They render on their own "screen" (light for Meta/Google, dark for
+   TikTok) regardless of dashboard theme, so creatives look the way customers see them. */
+
+.preview {
+  --pv-ink: #050505;
+  --pv-ink-2: #65676b;
+  --pv-line: #e4e6eb;
+  --pv-bg: #ffffff;
+  --pv-blue: #1a0dab;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--pv-bg);
+  color: var(--pv-ink);
+  border-radius: 10px;
+  overflow: hidden;
+  font: 13px/1.35 system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  text-align: left;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.large { font-size: 14.5px; max-width: 480px; margin: 0 auto; }
+
+.media { display: block; width: 100%; height: 100%; object-fit: contain; background: #f0f2f5; }
+
+/* ── Meta ─────────────────────────────────── */
+.metaHead { display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px; }
+.metaAvatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #2a78d6, #1baf7a); color: #fff; display: grid; place-items: center; font-weight: 700; flex: none; }
+.metaPage { display: block; font-weight: 600; font-size: 0.95em; }
+.metaSponsored { display: block; color: var(--pv-ink-2); font-size: 0.82em; }
+.metaMore { margin-left: auto; color: var(--pv-ink-2); letter-spacing: 1px; }
+.metaText { margin: 0; padding: 0 12px 8px; white-space: pre-wrap; }
+.metaMedia { aspect-ratio: 1 / 1; background: #f0f2f5; }
+.metaLink { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; background: #f0f2f5; }
+.metaDomain { display: block; color: var(--pv-ink-2); font-size: 0.78em; letter-spacing: 0.02em; }
+.metaHeadline { display: block; font-weight: 600; }
+.metaCta, .metaCtaSmall { flex: none; background: #e4e6eb; color: var(--pv-ink); font-weight: 600; border-radius: 6px; padding: 6px 12px; font-size: 0.9em; white-space: nowrap; }
+.metaCtaSmall { padding: 4px 8px; font-size: 0.8em; }
+.metaActions { display: flex; justify-content: space-around; padding: 7px 8px; border-top: 1px solid var(--pv-line); color: var(--pv-ink-2); font-size: 0.85em; font-weight: 600; }
+
+.carousel { display: grid; grid-auto-flow: column; grid-auto-columns: 78%; gap: 8px; overflow-x: auto; padding: 0 12px 10px; scroll-snap-type: x mandatory; }
+.carouselCard { scroll-snap-align: start; border: 1px solid var(--pv-line); border-radius: 8px; overflow: hidden; }
+.carouselMedia { aspect-ratio: 1 / 1; }
+.carouselFoot { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 8px; font-weight: 600; font-size: 0.88em; background: #f0f2f5; }
+
+/* ── TikTok ───────────────────────────────── */
+.tiktok { background: #000; color: #fff; }
+.phone { position: relative; aspect-ratio: 9 / 16; background: #000; }
+.phone .media { background: #111; }
+.ttShade { position: absolute; inset: 55% 0 0; background: linear-gradient(transparent, rgba(0, 0, 0, 0.7)); pointer-events: none; }
+.ttRail { position: absolute; right: 8px; bottom: 26%; display: flex; flex-direction: column; gap: 12px; align-items: center; font-size: 1.1em; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); }
+.ttRail small { display: block; font-size: 0.6em; text-align: center; }
+.ttAvatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #1baf7a, #2a78d6); display: grid; place-items: center; font-weight: 700; font-size: 0.75em; border: 2px solid #fff; }
+.ttCaption { position: absolute; left: 10px; right: 52px; bottom: 12px; font-size: 0.9em; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6); display: grid; gap: 3px; }
+.ttHandle { font-weight: 700; }
+.ttBody { opacity: 0.9; }
+.ttCta { margin-top: 6px; background: #fe2c55; color: #fff; border-radius: 4px; padding: 7px; text-align: center; font-weight: 700; text-shadow: none; }
+
+/* ── Google Search ────────────────────────── */
+.search { padding: 12px 14px 14px; }
+.searchBar { display: flex; align-items: center; gap: 8px; border: 1px solid #dfe1e5; border-radius: 999px; padding: 7px 12px; color: #202124; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(32, 33, 36, 0.12); }
+.searchIcon { width: 11px; height: 11px; border: 2px solid #9aa0a6; border-radius: 50%; position: relative; flex: none; }
+.searchIcon::after { content: ""; position: absolute; width: 2px; height: 6px; background: #9aa0a6; right: -4px; bottom: -5px; transform: rotate(-45deg); }
+.searchResult { display: grid; gap: 3px; }
+.sponsored { font-weight: 700; font-size: 0.82em; color: #202124; margin-bottom: 4px; }
+.shopping .sponsored { padding: 10px 12px 0; }
+.searchSite { display: flex; align-items: center; gap: 8px; }
+.favicon { width: 24px; height: 24px; border-radius: 50%; background: #f1f3f4; border: 1px solid #dadce0; display: grid; place-items: center; font-weight: 700; font-size: 0.75em; color: #202124; flex: none; }
+.searchBrand { display: block; color: #202124; font-size: 0.9em; }
+.searchUrl { display: block; color: #4d5156; font-size: 0.8em; }
+.searchHeadline { color: var(--pv-blue); font-size: 1.3em; line-height: 1.3; margin-top: 4px; }
+.searchDesc { margin: 0; color: #4d5156; }
+.sitelinks { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 6px; color: var(--pv-blue); font-size: 0.92em; }
+
+/* ── Google Shopping ──────────────────────── */
+.productGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px 12px 12px; }
+.product { display: grid; gap: 2px; font-size: 0.9em; }
+.productMedia { aspect-ratio: 1 / 1; border-radius: 8px; overflow: hidden; background: #f1f3f4; margin-bottom: 4px; }
+.productTitle { color: #202124; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.productPrice { font-weight: 700; color: #202124; }
+.productStore { color: #4d5156; font-size: 0.9em; }
+.productShip { color: #188038; font-size: 0.85em; }
