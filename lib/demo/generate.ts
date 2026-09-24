@@ -40,6 +40,13 @@ function gaussian(r: Rng): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r());
 }
 
+/** Deterministic 0..1 value from a string and a number (weekly budget changes per campaign). */
+function hash01(text: string, n: number): number {
+  let h = 2166136261 ^ n;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return ((h >>> 0) % 10_000) / 10_000;
+}
+
 const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
 
 // ─── Catalog ──────────────────────────────────────────────────────────────────
@@ -304,12 +311,14 @@ export function generateDemo({ endDay, days = 200, seed = 42 }: DemoOptions): Da
       const ageWeeks = (s.launchedDaysAgo - daysFromEnd) / 7;
       // Budget ramps up over the first few days of an ad's life.
       const ramp = Math.min(1, 0.35 + (s.launchedDaysAgo - daysFromEnd) * 0.15);
-      const spend = ad.campaign.dailyBudget * ad.groupBudgetShare * s.weight * ramp * between(r, 0.85, 1.12) * seasonal;
+      // Budgets move week to week (as real buyers adjust them); returns diminish as spend rises.
+      const budgetMult = 0.6 + 0.8 * hash01(ad.campaign.name, Math.floor(daysFromEnd / 7));
+      const spend = ad.campaign.dailyBudget * ad.groupBudgetShare * s.weight * ramp * between(r, 0.85, 1.12) * seasonal * budgetMult;
       const cpm = ps.cpm * between(r, 0.88, 1.15) * (1 + ageWeeks * s.fatigue * 0.35);
       const impressions = Math.round((spend / cpm) * 1000);
       const ctr = ps.ctr * Math.pow(1 - s.fatigue, ageWeeks) * between(r, 0.9, 1.1) * (0.8 + 0.4 * s.quality ** 0.3);
       const clicks = Math.round(impressions * ctr);
-      const conversions = poisson(r, clicks * ps.cvr * s.quality);
+      const conversions = poisson(r, clicks * ps.cvr * s.quality * Math.pow(budgetMult, -0.3));
 
       let revenue = 0;
       for (let k = 0; k < conversions; k++) {

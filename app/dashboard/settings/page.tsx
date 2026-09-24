@@ -3,10 +3,11 @@ import { requireMember } from "@/lib/auth";
 import { currentMode } from "@/lib/dashboard/data";
 import { PLATFORM_LABELS } from "@/lib/dashboard/filters";
 import { can } from "@/lib/roles";
-import { getAdAccounts, getSettings, getTeam } from "@/lib/settings";
+import { ownerEmail } from "@/lib/access";
+import { getAdAccounts, getSettings } from "@/lib/settings";
 import s from "../dashboard.module.css";
 import { Card, PageHead } from "../_components/ui";
-import { cancelInvite, changeRole, inviteMember, removeMember, saveProfile, saveTargets } from "./actions";
+import { saveProfile, saveTargets } from "./actions";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -19,7 +20,8 @@ const UTM_TEMPLATES = {
 export default async function SettingsPage({ searchParams }: PageProps<"/dashboard/settings">) {
   const me = await requireMember("viewer", "/dashboard/settings");
   const p = await searchParams;
-  const [mode, settings, team, accounts, h] = await Promise.all([currentMode(), getSettings(), getTeam(), getAdAccounts(), headers()]);
+  const [mode, settings, accounts, h] = await Promise.all([currentMode(), getSettings(), getAdAccounts(), headers()]);
+  const owner = ownerEmail(process.env);
   const editable = can.editSettings(me.role);
   const saved = one(p.saved);
   const error = one(p.error);
@@ -28,7 +30,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/dashboa
 
   return (
     <>
-      <PageHead title="Settings" subtitle="Targets, business profile, team and connections" mode={mode} exportable={false} />
+      <PageHead title="Settings" subtitle="Targets, business profile, access and connections" mode={mode} exportable={false} />
 
       {!settings && (
         <div className={s.callout}>
@@ -128,85 +130,21 @@ export default async function SettingsPage({ searchParams }: PageProps<"/dashboa
       </div>
 
       <div className={s.grid2}>
-        <Card title="Team" sub="Owners manage roles; admins invite people and edit settings; viewers can look">
-          <div id="team">
-            {!team ? (
-              <div className={s.empty}>Team management is available once the dashboard migration is applied.</div>
-            ) : (
-              <>
-                <div className={s.tableWrap} style={{ margin: "0 -18px 16px" }}>
-                  <table className={s.table}>
-                    <thead>
-                      <tr>
-                        <th>Person</th>
-                        <th>Role</th>
-                        <th></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {team.members.map((m) => (
-                        <tr key={m.user_id}>
-                          <td>{m.email}{m.user_id === me.userId && <span className={s.muted}> (you)</span>}</td>
-                          <td>
-                            {can.manageTeam(me.role) && m.role !== "owner" ? (
-                              <form action={changeRole} style={{ display: "inline-flex", gap: 6 }}>
-                                <input type="hidden" name="user_id" value={m.user_id} />
-                                <select name="role" defaultValue={m.role} className={s.select} aria-label={`Role for ${m.email}`}>
-                                  <option value="admin">Admin</option>
-                                  <option value="viewer">Viewer</option>
-                                </select>
-                                <button className={s.button} type="submit">Update</button>
-                              </form>
-                            ) : (
-                              <span className={s.statusChip}>{m.role}</span>
-                            )}
-                          </td>
-                          <td>
-                            {can.manageTeam(me.role) && m.role !== "owner" && m.user_id !== me.userId && (
-                              <form action={removeMember}>
-                                <input type="hidden" name="user_id" value={m.user_id} />
-                                <button className={`${s.button} ${s.buttonGhost}`} type="submit">Remove</button>
-                              </form>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                      {team.invites.map((i) => (
-                        <tr key={i.email}>
-                          <td>{i.email} <span className={s.muted}>· invited</span></td>
-                          <td><span className={s.statusChip}>{i.role}</span></td>
-                          <td>
-                            {can.invite(me.role) && (
-                              <form action={cancelInvite}>
-                                <input type="hidden" name="email" value={i.email} />
-                                <button className={`${s.button} ${s.buttonGhost}`} type="submit">Cancel</button>
-                              </form>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+        <Card title="Access" sub="This dashboard is private">
+          <div className={s.statusList}>
+            <div className={s.statusItem}>
+              <span className={`${s.statusIcon} ${owner ? s.statusOk : s.statusBad}`} aria-hidden="true">{owner ? "✓" : "!"}</span>
+              <div>
+                <div className={s.statusName}>{owner ? `Only ${owner} can sign in` : "No owner email set"}</div>
+                <div className={s.statusDetail}>
+                  {owner
+                    ? "Sign-in is by one-time email link. Anyone else who reaches the login page gets nothing, and any other account is signed out immediately."
+                    : "Set OWNER_EMAIL on the server. Until then nobody can sign in."}
                 </div>
-                {can.invite(me.role) && (
-                  <form action={inviteMember} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
-                    <div className={s.field} style={{ flex: "1 1 200px" }}>
-                      <label htmlFor="invite_email">Invite by email</label>
-                      <input id="invite_email" name="email" type="email" required placeholder="teammate@company.com" />
-                    </div>
-                    <select name="role" className={s.select} aria-label="Role" defaultValue="viewer">
-                      <option value="viewer">Viewer</option>
-                      {me.role === "owner" && <option value="admin">Admin</option>}
-                    </select>
-                    <button className={`${s.button} ${s.buttonPrimary}`} type="submit">Invite</button>
-                  </form>
-                )}
-                <p className={s.hint} style={{ marginTop: 10 }}>
-                  Invited people sign in at <code>{origin}/login</code> with that email.
-                </p>
-              </>
-            )}
+              </div>
+            </div>
           </div>
+          <p className={s.hint} style={{ marginTop: 10 }}>To change who has access, update <code>OWNER_EMAIL</code> in your environment variables (Vercel → Settings → Environment Variables) and redeploy.</p>
         </Card>
 
         <Card title="Ad accounts" sub="Spend and creative data (connectors arrive in Phase 2)">

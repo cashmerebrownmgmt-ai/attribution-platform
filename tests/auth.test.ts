@@ -41,3 +41,27 @@ describe("safeNext", () => {
     expect(safeNext(null)).toBe("/dashboard");
   });
 });
+
+import { authErrorCode, isOwnerEmail, ownerEmail } from "@/lib/access";
+
+describe("owner-only access", () => {
+  const env = { OWNER_EMAIL: " Jahshuab@Gmail.com " };
+  it("admits only the owner's email, case- and space-insensitively", () => {
+    expect(isOwnerEmail("jahshuab@gmail.com", env)).toBe(true);
+    expect(isOwnerEmail("JAHSHUAB@gmail.com ", env)).toBe(true);
+    expect(isOwnerEmail("someone@gmail.com", env)).toBe(false);
+    expect(isOwnerEmail("jahshuab@gmail.com.evil.com", env)).toBe(false);
+    expect(isOwnerEmail(null, env)).toBe(false);
+  });
+  it("fails closed when OWNER_EMAIL is missing or malformed", () => {
+    expect(ownerEmail({})).toBeNull();
+    expect(ownerEmail({ OWNER_EMAIL: "not-an-email" })).toBeNull();
+    expect(isOwnerEmail("", {})).toBe(false);
+    expect(isOwnerEmail("anyone@example.com", { OWNER_EMAIL: "" })).toBe(false);
+  });
+  it("maps Supabase link errors to clear messages", () => {
+    expect(authErrorCode({ error: "access_denied", error_code: "otp_expired" })).toBe("link_expired");
+    expect(authErrorCode({ error_description: "invalid request: both auth code and code verifier should be non-empty" })).toBe("other_browser");
+    expect(authErrorCode({ error: "server_error" })).toBe("link_failed");
+  });
+});

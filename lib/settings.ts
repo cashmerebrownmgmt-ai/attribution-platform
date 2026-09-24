@@ -29,18 +29,6 @@ export async function getSettings(): Promise<SettingsRow | null> {
   return data as SettingsRow | null;
 }
 
-export type TeamMember = { user_id: string; email: string; role: string; created_at: string };
-export type Invite = { email: string; role: string; created_at: string };
-
-export async function getTeam(): Promise<{ members: TeamMember[]; invites: Invite[] } | null> {
-  const [m, i] = await Promise.all([
-    db().from("members").select("user_id, email, role, created_at").order("created_at"),
-    db().from("invites").select("email, role, created_at").order("created_at"),
-  ]);
-  if (m.error || i.error) return null;
-  return { members: m.data as TeamMember[], invites: i.data as Invite[] };
-}
-
 export async function getAdAccounts(): Promise<{ platform: string; id: string; name: string | null }[]> {
   const { data, error } = await db().from("ad_accounts").select("platform, id, name");
   return error ? [] : (data ?? []);
