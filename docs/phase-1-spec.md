@@ -142,7 +142,7 @@ Installed in the theme as `<script src="https://<vercel-domain>/t.js" async></sc
 - Keep it small (target < 5 KB minified) with no dependencies. Build it with esbuild.
 - **Visitor ID:** read the `_ap_vid` cookie or create a UUID. Set it as a first-party cookie on the store's root domain with `SameSite=Lax`, `Secure` and a 395-day expiry, refreshed on each visit.
 - **Session ID:** keep in `sessionStorage` plus a last-activity timestamp. Start a new session after 30 minutes idle or when a new UTM or click ID is present.
-- **On every page load:** send a `page_view` with URL, path, referrer, UTMs and click IDs parsed from the URL.
+- **On every page load:** send a `page_view` with the full URL and `document.referrer`. The endpoint parses UTMs and click IDs from the URL. Events go to `/api/collect` on the origin `t.js` was loaded from, so the theme needs no configuration.
 - **Cart attribute:** once per session, and whenever the cart changes, call `POST /cart/update.js` with `{"attributes": {"_ap_vid": "<id>"}}` so the ID ends up in the order's `note_attributes`. Skip the call if the cart already has the attribute.
 - **Consent:** if `window.Shopify.customerPrivacy` exists, only track when `analyticsProcessingAllowed()` is true. Listen for the `visitorConsentCollected` event.
 - Fail silently. The script must never throw in the storefront.
