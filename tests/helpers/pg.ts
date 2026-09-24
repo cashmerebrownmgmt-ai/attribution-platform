@@ -4,8 +4,9 @@ import { PGlite } from "@electric-sql/pglite";
 
 const MIGRATIONS_DIR = join(__dirname, "..", "..", "supabase", "migrations");
 
-/** In-process Postgres with Supabase's API roles and every migration applied. */
-export async function migratedDb(): Promise<PGlite> {
+let template: Promise<PGlite> | undefined;
+
+async function buildTemplate(): Promise<PGlite> {
   const pg = new PGlite();
   await pg.exec(`
     create role anon nologin;
@@ -16,4 +17,13 @@ export async function migratedDb(): Promise<PGlite> {
     await pg.exec(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));
   }
   return pg;
+}
+
+/**
+ * A fresh in-process Postgres with Supabase's API roles and every migration applied.
+ * Migrations run once per test file; each call returns an independent clone.
+ */
+export async function migratedDb(): Promise<PGlite> {
+  template ??= buildTemplate();
+  return (await (await template).clone()) as PGlite;
 }
