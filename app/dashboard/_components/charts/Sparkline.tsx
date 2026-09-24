@@ -1,7 +1,7 @@
 /** Tiny trend line for stat tiles. Decorative: the tile's value and delta carry the meaning. */
 export function Sparkline({ values, color = "var(--s1)", width = 96, height = 28 }: { values: (number | null)[]; color?: string; width?: number; height?: number }) {
   const nums = values.map((v) => v ?? 0);
-  if (nums.length < 2) return null;
+  if (nums.length < 2 || nums.every((v) => v === 0)) return null;
   const max = Math.max(...nums);
   const min = Math.min(...nums);
   const span = max - min || 1;
