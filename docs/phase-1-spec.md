@@ -185,12 +185,12 @@ Keep these as pure functions that take an order plus candidate data and return a
 3. `customer_history`: an earlier order with the same `customer_id` or `email_hash` is stitched to a visitor. Use that visitor.
 4. `none`: leave `visitor_id` null.
 
-**Attribution.** Use the stitched visitor's touchpoints (`is_touchpoint = true`) within a **30-day lookback** before `orders.created_at`.
+**Attribution.** Use the stitched visitor's storefront **sessions** (tracker events only; checkout pixel events never start a session) within a **30-day lookback** before `orders.created_at`. A session's source is its first touchpoint; a session with no touchpoint is `direct`.
 
-- `first_touch`: the earliest touchpoint in the window.
-- `last_touch`: the latest touchpoint in the window.
-- `last_non_direct`: the latest touchpoint whose channel isn't `direct`.
-- If there are no touchpoints, write a row with `event_id = null` and `channel = 'direct'`.
+- `first_touch`: the first session in the window.
+- `last_touch`: the last session in the window, which may be a direct return visit.
+- `last_non_direct`: the last session that has a source.
+- A direct result is stored with `event_id = null` and `channel = 'direct'`.
 
 **Channel rules** (`lib/channel.ts`, table-driven):
 

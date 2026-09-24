@@ -1,4 +1,6 @@
 import { requireEnv } from "@/lib/env";
+import { stitchOrder } from "@/lib/stitch-runner";
+import { supabaseStitchRepo } from "@/lib/stitch-store";
 import { supabaseWebhookStore } from "@/lib/webhook-store";
 import { handleShopifyWebhook } from "@/lib/webhooks";
 
@@ -9,5 +11,8 @@ export async function POST(req: Request) {
       shopDomain: requireEnv("SHOPIFY_SHOP_DOMAIN"),
     },
     store: supabaseWebhookStore,
+    afterOrder: async (orderId) => {
+      await stitchOrder(orderId, supabaseStitchRepo);
+    },
   });
 }
