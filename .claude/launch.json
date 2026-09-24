@@ -2,16 +2,38 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
       "name": "app-tracker-test",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["next", "dev", "-p", "3100"],
-      "env": { "ALLOWED_ORIGINS": "http://localhost:3200" },
+      "runtimeArgs": [
+        "next",
+        "dev",
+        "-p",
+        "3100"
+      ],
+      "env": {
+        "ALLOWED_ORIGINS": "http://localhost:3200"
+      },
       "port": 3100
     },
     {
       "name": "tracker-test-page",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "3200", "--directory", "dev"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "3200",
+        "--directory",
+        "dev"
+      ],
       "port": 3200
     }
   ]
