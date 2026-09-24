@@ -1,17 +1,6 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
-
-const MIGRATIONS_DIR = join(__dirname, "..", "supabase", "migrations");
-
-async function migratedDb() {
-  const pg = new PGlite();
-  for (const file of readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort()) {
-    await pg.exec(readFileSync(join(MIGRATIONS_DIR, file), "utf8"));
-  }
-  return pg;
-}
+import { migratedDb } from "./helpers/pg";
 
 describe("migrations", () => {
   let pg: PGlite;

@@ -67,7 +67,8 @@ One row per tracked event (page views, checkout steps).
 | `source` | `text` | `tracker` or `pixel` |
 | `occurred_at` | `timestamptz` | Client time, clamped to server time ± 24h |
 | `received_at` | `timestamptz` | Server time |
-| `url`, `path`, `referrer` | `text` | |
+| `url`, `path` | `text` | |
+| `referrer` | `text` | External referrer only; same-site and checkout/payment referrers are stored as null |
 | `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content` | `text` | |
 | `gclid`, `fbclid`, `ttclid`, `msclkid` | `text` | Ad click IDs |
 | `checkout_token` | `text` | Pixel checkout events only |
@@ -125,7 +126,9 @@ Enable RLS on every table and add no public policies.
 - Accepts a JSON body containing a single event or a batch of up to 20 events. The tracker sends it with `navigator.sendBeacon` as `text/plain` to avoid CORS preflight, so the endpoint must parse `text/plain` bodies as JSON.
 - CORS: allow only the store's domains (from `ALLOWED_ORIGINS`) and respond to `OPTIONS`.
 - Validate with `zod`. Reject bodies larger than 32 KB.
-- Upsert the visitor (update `last_seen_at`; set `first_touch` only if it's empty). Insert the events and ignore duplicates by `id`.
+- UTMs, click IDs and the external referrer are parsed **on the server** from the event's `url` and `referrer` (`lib/source.ts`), so the tracker stays small.
+- Store the batch with the `ingest_events` database function: upsert the visitor (widen first/last seen; set `first_touch` only if it's empty), then insert the events, ignoring duplicate `id`s.
+- The Shopify pixel sandbox sends `Origin: null`; accept that only when every event in the batch has `source = pixel`.
 - Hash the client IP (`x-forwarded-for`, first value) using `IP_HASH_SALT`.
 - Always return `204` quickly. Log validation failures without the payload.
 - Ignore obvious bots (user agent matches a bot list).
