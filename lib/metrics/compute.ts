@@ -393,10 +393,10 @@ export function touchFlows(data: DashboardData, f: Filters): Flow[] {
 export function timeToPurchase(data: DashboardData, f: Filters): { bucket: string; orders: number }[] {
   const buckets = [
     { bucket: "Same day", max: 0 },
-    { bucket: "1–3 days", max: 3 },
-    { bucket: "4–7 days", max: 7 },
-    { bucket: "8–14 days", max: 14 },
-    { bucket: "15–30 days", max: 30 },
+    { bucket: "1–3 d", max: 3 },
+    { bucket: "4–7 d", max: 7 },
+    { bucket: "8–14 d", max: 14 },
+    { bucket: "15–30 d", max: 30 },
   ];
   const counts = buckets.map((b) => ({ bucket: b.bucket, orders: 0 }));
   for (const o of creditedTo(ordersIn(data, f.range), f.model, f.platform)) {

@@ -8,18 +8,16 @@ describe("migrations", () => {
     pg = await migratedDb();
   });
 
-  it("creates every Phase 1 table with RLS enabled", async () => {
+  it("creates every table with RLS enabled", async () => {
     const { rows } = await pg.query<{ relname: string; relrowsecurity: boolean }>(
       `select relname, relrowsecurity from pg_class
        where relnamespace = 'public'::regnamespace and relkind = 'r' order by relname`,
     );
-    expect(rows).toEqual([
-      { relname: "events", relrowsecurity: true },
-      { relname: "order_attributions", relrowsecurity: true },
-      { relname: "orders", relrowsecurity: true },
-      { relname: "visitors", relrowsecurity: true },
-      { relname: "webhook_events", relrowsecurity: true },
-    ]);
+    const names = rows.map((r) => r.relname);
+    for (const t of ["visitors", "events", "orders", "order_attributions", "webhook_events", "ads", "ad_insights_daily", "members", "settings"]) {
+      expect(names).toContain(t);
+    }
+    expect(rows.filter((r) => !r.relrowsecurity)).toEqual([]);
   });
 
   it("rejects an unknown stitch method", async () => {

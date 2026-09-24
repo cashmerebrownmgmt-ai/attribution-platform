@@ -183,3 +183,40 @@ alter table public.settings          enable row level security;
 
 revoke all on public.order_facts from anon, authenticated;
 revoke execute on function public.join_team(uuid, text) from public, anon, authenticated;
+
+-- Health summary for the dashboard: event volume by hour (48h), freshness, webhooks and stitching.
+create function public.health_summary()
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'events_by_hour', coalesce((
+      select jsonb_agg(jsonb_build_object('hour', h.hour, 'tracker', h.tracker, 'pixel', h.pixel) order by h.hour)
+      from (
+        select date_trunc('hour', received_at) as hour,
+               count(*) filter (where source = 'tracker') as tracker,
+               count(*) filter (where source = 'pixel') as pixel
+        from public.events
+        where received_at >= now() - interval '48 hours'
+        group by 1
+      ) h), '[]'::jsonb),
+    'last_event_at', (select max(received_at) from public.events),
+    'webhooks_24h', (
+      select jsonb_build_object('total', count(*), 'failed', count(*) filter (where error is not null))
+      from public.webhook_events where received_at >= now() - interval '24 hours'),
+    'last_webhook_at', (select max(received_at) from public.webhook_events),
+    'stitch_7d', coalesce((
+      select jsonb_object_agg(stitch_method, n)
+      from (select stitch_method, count(*) n from public.orders
+            where created_at >= now() - interval '7 days' group by 1) s), '{}'::jsonb),
+    'pixel_checkouts_7d', (
+      select count(*) from public.events
+      where source = 'pixel' and type = 'checkout_completed' and occurred_at >= now() - interval '7 days'),
+    'orders_7d', (select count(*) from public.orders where created_at >= now() - interval '7 days')
+  );
+$$;
+
+revoke execute on function public.health_summary() from public, anon, authenticated;
