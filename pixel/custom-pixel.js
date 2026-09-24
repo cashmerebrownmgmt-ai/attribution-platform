@@ -1,0 +1,50 @@
+// Attribution platform: checkout pixel.
+// Paste into Shopify admin → Settings → Customer events → Add custom pixel.
+// Permission: "Not required" is fine; set Data sale to "Data collected does not qualify as data sale".
+// Customer privacy: choose "Analytics" so Shopify only runs it when the visitor allows analytics.
+
+const ENDPOINT = "https://attribution-platform-sigma.vercel.app/api/collect";
+const COOKIE = "_ap_vid";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const EVENTS = ["checkout_started", "checkout_contact_info_submitted", "checkout_shipping_info_submitted", "payment_info_submitted", "checkout_completed"];
+
+function uuid() {
+  if (self.crypto && self.crypto.randomUUID) return self.crypto.randomUUID();
+  const b = self.crypto.getRandomValues(new Uint8Array(16));
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+// The storefront tracking script sets _ap_vid; reuse it so checkout joins the same visitor.
+async function visitorId() {
+  let id = await browser.cookie.get(COOKIE);
+  if (!UUID.test(id || "")) {
+    id = uuid();
+    await browser.cookie.set(`${COOKIE}=${id}; path=/; max-age=34128000; SameSite=Lax; Secure`);
+  }
+  return id;
+}
+
+EVENTS.forEach((name) => {
+  analytics.subscribe(name, async (event) => {
+    try {
+      const checkout = (event.data && event.data.checkout) || {};
+      const body = {
+        id: uuid(),
+        visitor_id: await visitorId(),
+        type: name,
+        source: "pixel",
+        occurred_at: Date.parse(event.timestamp) || Date.now(),
+        url: event.context.document.location.href,
+        referrer: event.context.document.referrer || null,
+        checkout_token: checkout.token || null,
+        shopify_order_id: (checkout.order && checkout.order.id && String(checkout.order.id).replace(/\D/g, "")) || null,
+      };
+      fetch(ENDPOINT, { method: "POST", body: JSON.stringify(body), keepalive: true, mode: "cors", credentials: "omit" });
+    } catch {
+      // Never break checkout.
+    }
+  });
+});
