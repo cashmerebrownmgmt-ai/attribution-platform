@@ -32,7 +32,7 @@ export default async function DebugHome({ searchParams }: PageProps<"/debug">) {
         </div>
       )}
       <h1 className={s.h1}>Overview</h1>
-      <p className={s.sub}>Tracking health and the latest orders. Times are shown in your browser&apos;s time zone.</p>
+      <p className={s.sub}>Tracking health and the latest orders. Each time shows its time zone.</p>
 
       <div className={s.grid}>
         <div className={s.card}>

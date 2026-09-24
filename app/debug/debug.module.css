@@ -87,4 +87,5 @@
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; word-break: break-all; }
 .alert { padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); margin-bottom: 16px; }
-.touch { border-left: 3px solid var(--accent); }
+.touch td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.card a, .note a { color: var(--accent); text-decoration: none; }
