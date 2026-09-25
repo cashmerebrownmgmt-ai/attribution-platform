@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { verifyShopifyHmac } from "./hmac";
 import { hashEmail } from "./privacy";
-import { ORDER_TOPICS, orderPayload, toOrderRow, type OrderRow } from "./shopify";
+import { ORDER_TOPICS, orderPayload, toItemRows, toOrderRow, type OrderItemRow, type OrderRow } from "./shopify";
 
 /** Request handling for POST /api/webhooks/shopify. Storage is injected so this stays testable. */
 
@@ -10,6 +10,7 @@ export type WebhookStore = {
   claim: (webhookId: string, topic: string, shopDomain: string) => Promise<boolean>;
   finish: (webhookId: string, error: string | null) => Promise<void>;
   upsertOrder: (row: OrderRow) => Promise<void>;
+  replaceItems: (orderId: string, items: OrderItemRow[]) => Promise<void>;
   redactCustomer: (customerId: string | null, emailHash: string | null, orderIds: string[]) => Promise<void>;
   redactShop: () => Promise<void>;
 };
@@ -29,8 +30,10 @@ const customersRedact = z.object({
 
 async function process(topic: string, body: unknown, deps: WebhookDeps): Promise<void> {
   if (ORDER_TOPICS.has(topic)) {
-    const row = toOrderRow(orderPayload.parse(body), "webhook");
+    const payload = orderPayload.parse(body);
+    const row = toOrderRow(payload, "webhook");
     await deps.store.upsertOrder(row);
+    if (payload.line_items) await deps.store.replaceItems(row.id, toItemRows(payload));
     await deps.afterOrder?.(row.id);
     return;
   }

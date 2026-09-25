@@ -28,7 +28,45 @@ export const orderPayload = z.object({
   referring_site: str,
   source_name: str,
   note_attributes: z.array(z.object({ name: z.string(), value: z.unknown() })).nullish(),
+  line_items: z
+    .array(
+      z.object({
+        id,
+        title: z.string(),
+        variant_title: str,
+        sku: str,
+        quantity: z.number().int().nullish(),
+        price: money,
+        product_id: id.nullish(),
+        variant_id: id.nullish(),
+      }),
+    )
+    .nullish(),
 });
+
+export type OrderItemRow = {
+  line_id: string;
+  product_id: string | null;
+  variant_id: string | null;
+  title: string;
+  variant_title: string | null;
+  sku: string | null;
+  quantity: number;
+  price: string | null;
+};
+
+export function toItemRows(o: OrderPayload): OrderItemRow[] {
+  return (o.line_items ?? []).map((l) => ({
+    line_id: l.id,
+    product_id: l.product_id ?? null,
+    variant_id: l.variant_id ?? null,
+    title: l.title,
+    variant_title: l.variant_title ?? null,
+    sku: l.sku ?? null,
+    quantity: l.quantity ?? 1,
+    price: l.price ?? null,
+  }));
+}
 
 export type OrderPayload = z.infer<typeof orderPayload>;
 

@@ -16,6 +16,7 @@ let claimed: Map<string, boolean>; // webhookId -> processed
 let finished: Call[];
 let orders: OrderRow[];
 let redactions: unknown[];
+let items: { orderId: string; rows: unknown[] }[];
 let afterOrder: ReturnType<typeof vi.fn<(id: string) => Promise<void>>>;
 let deps: WebhookDeps;
 
@@ -24,6 +25,7 @@ beforeEach(() => {
   finished = [];
   orders = [];
   redactions = [];
+  items = [];
   afterOrder = vi.fn(async () => {});
   deps = {
     config: { clientSecret: SECRET, shopDomain: SHOP },
@@ -40,6 +42,7 @@ beforeEach(() => {
         if (!error) claimed.set(id, true);
       },
       upsertOrder: async (row) => void orders.push(row),
+      replaceItems: async (orderId, rows) => void items.push({ orderId, rows }),
       redactCustomer: async (...args) => void redactions.push(["customer", ...args]),
       redactShop: async () => void redactions.push(["shop"]),
     },
@@ -92,6 +95,7 @@ describe("POST /api/webhooks/shopify", () => {
         { name: "gift_note", value: "Happy birthday" },
       ],
     });
+    expect(items).toEqual([{ orderId: "5801234567890", rows: [{ line_id: "1", product_id: null, variant_id: null, title: "Tee", variant_title: null, sku: "TEE-1", quantity: 3, price: "25.00" }] }]);
     const stored = JSON.stringify(row).toLowerCase();
     for (const pii of ["jane", "doe@", "main st", "toronto"]) expect(stored).not.toContain(pii);
   });

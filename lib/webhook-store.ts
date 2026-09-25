@@ -23,6 +23,8 @@ export const supabaseWebhookStore: WebhookStore = {
 
   upsertOrder: (row) => rpc("upsert_order", { p_order: row }),
 
+  replaceItems: (orderId, items) => rpc("replace_order_items", { p_order_id: orderId, p_items: items }),
+
   redactCustomer: (customerId, emailHash, orderIds) =>
     rpc("redact_customer", { p_customer_id: customerId, p_email_hash: emailHash, p_order_ids: orderIds }),
 
