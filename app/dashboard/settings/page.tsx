@@ -147,7 +147,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/dashboa
           <p className={s.hint} style={{ marginTop: 10 }}>To change who has access, update <code>OWNER_EMAIL</code> in your environment variables (Vercel → Settings → Environment Variables) and redeploy.</p>
         </Card>
 
-        <Card title="Ad accounts" sub="Spend and creative data (connectors arrive in Phase 2)">
+        <Card title="Ad accounts" sub="Spend and creative data. Meta refreshes every morning; Google and TikTok connect once their API access is approved.">
           <div className={s.statusList}>
             {(["meta", "google", "tiktok"] as const).map((pl) => {
               const acc = accounts.filter((a) => a.platform === pl);
