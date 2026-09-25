@@ -6,7 +6,6 @@
 const ENDPOINT = "https://attribution-platform-sigma.vercel.app/api/collect";
 const COOKIE = "_ap_vid";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const EVENTS = ["checkout_started", "checkout_contact_info_submitted", "checkout_shipping_info_submitted", "payment_info_submitted", "checkout_completed"];
 
 function uuid() {
   if (self.crypto && self.crypto.randomUUID) return self.crypto.randomUUID();
@@ -27,24 +26,29 @@ async function visitorId() {
   return id;
 }
 
-EVENTS.forEach((name) => {
-  analytics.subscribe(name, async (event) => {
-    try {
-      const checkout = (event.data && event.data.checkout) || {};
-      const body = {
-        id: uuid(),
-        visitor_id: await visitorId(),
-        type: name,
-        source: "pixel",
-        occurred_at: Date.parse(event.timestamp) || Date.now(),
-        url: event.context.document.location.href,
-        referrer: event.context.document.referrer || null,
-        checkout_token: checkout.token || null,
-        shopify_order_id: (checkout.order && checkout.order.id && String(checkout.order.id).replace(/\D/g, "")) || null,
-      };
-      fetch(ENDPOINT, { method: "POST", body: JSON.stringify(body), keepalive: true, mode: "cors", credentials: "omit" });
-    } catch {
-      // Never break checkout.
-    }
-  });
-});
+async function send(name, event) {
+  try {
+    const checkout = (event.data && event.data.checkout) || {};
+    const body = {
+      id: uuid(),
+      visitor_id: await visitorId(),
+      type: name,
+      source: "pixel",
+      occurred_at: Date.parse(event.timestamp) || Date.now(),
+      url: event.context.document.location.href,
+      referrer: event.context.document.referrer || null,
+      checkout_token: checkout.token || null,
+      shopify_order_id: (checkout.order && checkout.order.id && String(checkout.order.id).replace(/\D/g, "")) || null,
+    };
+    fetch(ENDPOINT, { method: "POST", body: JSON.stringify(body), keepalive: true, mode: "cors", credentials: "omit" });
+  } catch {
+    // Never break checkout.
+  }
+}
+
+// Each event is written out literally: Shopify only detects subscriptions it can see in the code.
+analytics.subscribe("checkout_started", (event) => send("checkout_started", event));
+analytics.subscribe("checkout_contact_info_submitted", (event) => send("checkout_contact_info_submitted", event));
+analytics.subscribe("checkout_shipping_info_submitted", (event) => send("checkout_shipping_info_submitted", event));
+analytics.subscribe("payment_info_submitted", (event) => send("payment_info_submitted", event));
+analytics.subscribe("checkout_completed", (event) => send("checkout_completed", event));
