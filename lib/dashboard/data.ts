@@ -59,7 +59,7 @@ async function loadLive(): Promise<DashboardData> {
   const since = new Date(Date.now() - 400 * 86_400_000).toISOString();
   const sinceDay = since.slice(0, 10);
 
-  const [orders, attributions, campaigns, adGroups, ads, insights, settingsRow, health] = await Promise.all([
+  const [orders, attributions, campaigns, adGroups, ads, insights, settingsRow, health, customers, items] = await Promise.all([
     fetchAll<OrderFactRow>(
       (a, b) => db().from("order_facts").select("id, name, created_at, revenue, cancelled_at, stitch_method, is_new_customer").gte("created_at", since).order("created_at").range(a, b),
       "order_facts",
@@ -83,7 +83,23 @@ async function loadLive(): Promise<DashboardData> {
     ),
     db().from("settings").select("*").maybeSingle(),
     db().rpc("health_summary"),
+    fetchAll<{ id: string; customer_id: string | null; email_hash: string | null }>(
+      (a, b) => db().from("orders").select("id, customer_id, email_hash").gte("created_at", since).order("id").range(a, b),
+      "order customers",
+    ),
+    fetchAll<{ order_id: string; product_id: string | null; title: string; quantity: number; price: string | number | null }>(
+      (a, b) => db().from("order_items").select("order_id, product_id, title, quantity, price").order("order_id").order("line_id").range(a, b),
+      "order_items",
+    ),
   ]);
+
+  const customerOf = new Map(customers.map((c) => [c.id, c.customer_id ? `c:${c.customer_id}` : c.email_hash ? `e:${c.email_hash}` : null]));
+  const itemsOf = new Map<string, OrderFact["items"]>();
+  for (const i of items) {
+    const list = itemsOf.get(i.order_id) ?? [];
+    list.push({ key: i.product_id ? `p:${i.product_id}` : `t:${i.title}`, title: i.title, quantity: i.quantity, revenue: Number(i.price ?? 0) * i.quantity });
+    itemsOf.set(i.order_id, list);
+  }
 
   const byOrder = new Map<string, Partial<Record<Model, AttributionRow>>>();
   for (const a of attributions) {
@@ -113,6 +129,8 @@ async function loadLive(): Promise<DashboardData> {
       touches,
       path: o.stitch_method === "none" ? [] : path,
       daysToPurchase: first ? Math.max(0, Math.floor((Date.parse(o.created_at) - Date.parse(first)) / 86_400_000)) : null,
+      customerKey: customerOf.get(o.id) ?? null,
+      items: itemsOf.get(o.id) ?? [],
     };
   });
 

@@ -38,6 +38,8 @@ function order(day: string, revenue: number, last: Touch, o: Partial<OrderFact> 
     touches: { first_touch: last, last_touch: last, last_non_direct: last },
     path: [last.channel],
     daysToPurchase: 1,
+    customerKey: null,
+    items: [],
     ...o,
   };
 }

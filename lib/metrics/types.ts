@@ -29,7 +29,12 @@ export type OrderFact = {
   path: Channel[];
   /** Days from first session in the window to the order. Null when not stitched. */
   daysToPurchase: number | null;
+  /** Shopify customer ID or email hash; null when unknown (guest with no email). */
+  customerKey: string | null;
+  items: OrderItem[];
 };
+
+export type OrderItem = { key: string; title: string; quantity: number; revenue: number };
 
 export type Campaign = {
   platform: Platform;

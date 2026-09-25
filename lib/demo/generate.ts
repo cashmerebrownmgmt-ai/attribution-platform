@@ -220,6 +220,17 @@ const ORGANIC_DAILY: { channel: Channel; orders: number; newRate: number }[] = [
   { channel: "sms", orders: 1.5, newRate: 0.05 },
 ];
 
+const PRODUCTS = [
+  { key: "p-soul-reserve-2", title: "The Soul Reserve Vol. 2", price: 39 },
+  { key: "p-808-essentials", title: "808 Essentials", price: 29 },
+  { key: "p-drum-kit-heat", title: "Heat Drum Kit", price: 34 },
+  { key: "p-melody-loops", title: "Late Night Melody Loops", price: 44 },
+  { key: "p-producer-bundle", title: "Producer Bundle (5 kits)", price: 99 },
+  { key: "p-vocal-chops", title: "Vocal Chops Vol. 1", price: 24 },
+  { key: "p-1on1", title: "1-on-1 Mix Session", price: 150 },
+  { key: "p-free-sample", title: "Starter Sample Pack", price: 9 },
+];
+
 const THUMB_HUES: Record<Platform, number> = { meta: 220, google: 140, tiktok: 330, microsoft: 200 };
 
 // ─── Generator ────────────────────────────────────────────────────────────────
@@ -279,7 +290,26 @@ export function generateDemo({ endDay, days = 200, seed = 42 }: DemoOptions): Da
   const newOrder = (day: string, revenue: number, isNew: boolean, touches: Record<Model, Touch>, path: Channel[], daysToPurchase: number | null, stitched: boolean): OrderFact => {
     const hour = Math.floor(between(r, 7, 23));
     const minute = Math.floor(r() * 60);
-    if (isNew) customers.push(`cust${customers.length}`);
+    let customerKey: string;
+    if (isNew || customers.length === 0) {
+      customerKey = `cust${customers.length}`;
+      customers.push(customerKey);
+    } else {
+      // Returning buyers are spread across past customers, with a mild skew toward recent ones.
+      customerKey = customers[Math.max(0, customers.length - 1 - Math.floor(Math.pow(r(), 0.6) * customers.length))];
+    }
+    const items: OrderFact["items"] = [];
+    let total = 0;
+    while (total < revenue * 0.75 || items.length === 0) {
+      const p = pick(r, PRODUCTS);
+      const existing = items.find((i) => i.key === p.key);
+      if (existing) existing.quantity += 1;
+      else items.push({ key: p.key, title: p.title, quantity: 1, revenue: 0 });
+      total += p.price;
+      if (items.length >= 4) break;
+    }
+    for (const i of items) i.revenue = Math.round(PRODUCTS.find((p) => p.key === i.key)!.price * i.quantity * 100) / 100;
+    revenue = items.reduce((t, i) => t + i.revenue, 0);
     const n = ++orderSeq;
     return {
       id: `demo-${n}`,
@@ -292,6 +322,8 @@ export function generateDemo({ endDay, days = 200, seed = 42 }: DemoOptions): Da
       touches,
       path,
       daysToPurchase,
+      customerKey,
+      items,
     };
   };
 
@@ -323,7 +355,6 @@ export function generateDemo({ endDay, days = 200, seed = 42 }: DemoOptions): Da
       let revenue = 0;
       for (let k = 0; k < conversions; k++) {
         const value = aov();
-        revenue += value;
         const isNew = r() < ad.campaign.newCustomerRate;
         const paidChannel: Channel = ps.platform === "google" ? "paid_search" : "paid_social";
         const adTouch: Touch = { channel: paidChannel, platform: ps.platform, campaignId: ad.campaignId, adId: ad.id };
@@ -338,7 +369,9 @@ export function generateDemo({ endDay, days = 200, seed = 42 }: DemoOptions): Da
           ? { first_touch: firstTouch, last_touch: cameBackDirect ? direct : adTouch, last_non_direct: adTouch }
           : { first_touch: direct, last_touch: direct, last_non_direct: direct };
         const path: Channel[] = stitched ? [firstTouch.channel, ...(assisted ? [paidChannel] : []), ...(cameBackDirect ? ["direct" as Channel] : [])] : [];
-        orders.push(newOrder(day, value, isNew, touches, path, stitched ? (assisted || cameBackDirect ? Math.floor(between(r, 1, 21)) : Math.floor(between(r, 0, 3))) : null, stitched));
+        const placed = newOrder(day, value, isNew, touches, path, stitched ? (assisted || cameBackDirect ? Math.floor(between(r, 1, 21)) : Math.floor(between(r, 0, 3))) : null, stitched);
+        revenue += placed.revenue; // platforms report the real order value (then over-claim)
+        orders.push(placed);
       }
 
       insights.push({
