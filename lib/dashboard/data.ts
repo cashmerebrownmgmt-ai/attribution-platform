@@ -13,7 +13,8 @@ export const MODE_COOKIE = "ap_mode";
 export const todayUtc = () => new Date().toISOString().slice(0, 10);
 
 export async function currentMode(): Promise<Mode> {
-  return (await cookies()).get(MODE_COOKIE)?.value === "live" ? "live" : "demo";
+  // Real data unless this browser explicitly switched to demo, so a new device never shows sample numbers.
+  return (await cookies()).get(MODE_COOKIE)?.value === "demo" ? "demo" : "live";
 }
 
 let demoCache: { day: string; data: DashboardData } | undefined;

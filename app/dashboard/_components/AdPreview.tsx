@@ -146,8 +146,25 @@ function Media({ ad, variant = 0, vertical = false }: { ad: Ad; variant?: number
     // eslint-disable-next-line @next/next/no-img-element -- ad creatives come from platform CDNs with arbitrary hosts
     return <img className={s.media} src={img} alt={ad.headline ?? ad.name} loading="lazy" />;
   }
-  const hue = ad.thumbnailUrl?.startsWith("demo:") ? Number(ad.thumbnailUrl.slice(5)) : 210;
-  return <DemoArt hue={(hue + variant * 38) % 360} vertical={vertical} video={ad.format === "video"} label={ad.headline ?? ad.name} />;
+  // Generated art is only for demo ads; a real ad without media gets a plain placeholder, never fake art.
+  if (ad.thumbnailUrl?.startsWith("demo:")) {
+    const hue = Number(ad.thumbnailUrl.slice(5));
+    return <DemoArt hue={(hue + variant * 38) % 360} vertical={vertical} video={ad.format === "video"} label={ad.headline ?? ad.name} />;
+  }
+  return <NoPreview vertical={vertical} video={ad.format === "video"} name={ad.name} />;
+}
+
+function NoPreview({ vertical, video, name }: { vertical: boolean; video: boolean; name: string }) {
+  const w = 400;
+  const h = vertical ? 711 : 400;
+  return (
+    <svg className={s.media} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`${name}: no preview available`}>
+      <rect width={w} height={h} fill="#f0f2f5" />
+      <text x={w / 2} y={h / 2} textAnchor="middle" fontSize="16" fill="#6b6a66">
+        {video ? "Video preview not available" : "Preview not available"}
+      </text>
+    </svg>
+  );
 }
 
 /** Generated product scene for demo creatives: a tee on a colored set, with a play badge for video. */
