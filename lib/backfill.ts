@@ -5,8 +5,9 @@
 import type { OrderItemRow, OrderRow } from "./shopify";
 
 const ORDER_FIELDS = `
-      legacyResourceId name createdAt updatedAt cancelledAt displayFinancialStatus sourceName currencyCode
+      legacyResourceId name createdAt updatedAt cancelledAt displayFinancialStatus sourceName currencyCode test
       totalPriceSet { shopMoney { amount } }
+      currentTotalPriceSet { shopMoney { amount } }
       subtotalPriceSet { shopMoney { amount } }
       customAttributes { key value }`;
 
@@ -41,7 +42,9 @@ export type GqlOrder = {
   displayFinancialStatus: string | null;
   sourceName: string | null;
   currencyCode: string;
+  test?: boolean;
   totalPriceSet: Money;
+  currentTotalPriceSet?: Money;
   subtotalPriceSet: Money;
   customAttributes: { key: string; value: string | null }[];
   customer?: { legacyResourceId: string } | null;
@@ -68,10 +71,12 @@ export function mapOrder(o: GqlOrder): { order: OrderRow; items: OrderItemRow[] 
       name: o.name,
       created_at: o.createdAt,
       total_price: o.totalPriceSet?.shopMoney.amount ?? null,
+      current_total_price: o.currentTotalPriceSet?.shopMoney.amount ?? null,
       subtotal_price: o.subtotalPriceSet?.shopMoney.amount ?? null,
       currency: o.currencyCode,
       financial_status: o.displayFinancialStatus?.toLowerCase() ?? null,
       cancelled_at: o.cancelledAt,
+      test: o.test ?? false,
       checkout_token: null,
       cart_token: null,
       customer_id: o.customer?.legacyResourceId ?? null,

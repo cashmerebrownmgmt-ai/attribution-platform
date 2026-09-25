@@ -88,6 +88,15 @@ describe("page_stats", () => {
     await pg.query(`insert into events (${cols.join(",")}) values (${cols.map((_, i) => `$${i + 1}`).join(",")})`, Object.values(row));
   }
 
+  it("groups days in the store's time zone by default", async () => {
+    await pg.exec(`insert into visitors (id, first_seen_at) values ('77777777-7777-4777-8777-77777777777a', '2026-09-20T10:00:00Z') on conflict do nothing`);
+    await pg.query(`insert into events (id, visitor_id, session_id, type, source, occurred_at, path, url) values ('99999999-9999-4999-8999-99999999999a', '77777777-7777-4777-8777-77777777777a', '88888888-8888-4888-8888-88888888888a', 'page_view', 'tracker', '2026-09-25T02:30:00Z', '/products/late-night', 'https://s.example/products/late-night')`);
+    const et = await pg.query<{ day: string }>("select day::text from public.page_stats('2026-09-24', '2026-09-26') where key = 'late-night'");
+    expect(et.rows).toEqual([{ day: "2026-09-24" }]); // 10:30pm Eastern on the 24th
+    const utc = await pg.query<{ day: string }>("select day::text from public.page_stats('2026-09-24', '2026-09-26', 'UTC') where key = 'late-night'");
+    expect(utc.rows).toEqual([{ day: "2026-09-25" }]);
+  });
+
   it("counts product, collection and search views per day, with add-to-cart sessions", async () => {
     await pg.exec(`insert into visitors (id, first_seen_at) values ('${V}', '2026-09-20T10:00:00Z')`);
     await pv(S1, "2026-09-20T10:00:00Z", "/products/808-essentials", { title: "808 Essentials – Store" });
@@ -99,7 +108,7 @@ describe("page_stats", () => {
     await pg.query(`insert into events (id, visitor_id, session_id, type, source, occurred_at, path) values ($1, $2, $3, 'add_to_cart', 'tracker', '2026-09-20T10:06:00Z', '/cart')`, [id(), V, S1]);
     await pv(S2, "2026-09-21T09:00:00Z", "/products/808-essentials");
 
-    const { rows } = await pg.query<Record<string, unknown>>("select day::text, kind, key, title, views, sessions, carts from public.page_stats('2026-09-19', '2026-09-22')");
+    const { rows } = await pg.query<Record<string, unknown>>("select day::text, kind, key, title, views, sessions, carts from public.page_stats('2026-09-19', '2026-09-22', 'UTC')");
     expect(rows).toEqual([
       { day: "2026-09-20", kind: "collection", key: "drum-kits", title: null, views: 1, sessions: 1, carts: 1 },
       { day: "2026-09-20", kind: "product", key: "808-essentials", title: "808 Essentials – Store", views: 2, sessions: 1, carts: 1 },

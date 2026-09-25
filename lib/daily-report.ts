@@ -4,6 +4,7 @@
  * save a snapshot and the page and PDF render the same thing.
  */
 import { alertsFor, type Alert } from "./alerts";
+import { STORE_TZ } from "./tz";
 import { behaviorTips, type Tip } from "./behavior-insights";
 import { CHANNEL_LABELS } from "./debug";
 import { addDays, ctrDecay, fatigue, performance, ratio } from "./metrics/compute";
@@ -12,7 +13,7 @@ import { adSignal, type Verdict } from "./metrics/signals";
 import type { DashboardData, OrderFact } from "./metrics/types";
 import type { SessionFact } from "./sessions";
 
-export const REPORT_TZ = "America/New_York";
+export const REPORT_TZ = STORE_TZ;
 
 const formatters = new Map<string, Intl.DateTimeFormat>();
 

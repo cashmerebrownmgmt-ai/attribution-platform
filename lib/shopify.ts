@@ -15,10 +15,12 @@ export const orderPayload = z.object({
   created_at: z.string(),
   updated_at: str,
   total_price: money,
+  current_total_price: money, // after refunds
   subtotal_price: money,
   currency: str,
   financial_status: str,
   cancelled_at: str,
+  test: z.boolean().nullish(),
   checkout_token: str,
   cart_token: str,
   email: str,
@@ -75,10 +77,12 @@ export type OrderRow = {
   name: string | null;
   created_at: string;
   total_price: string | null;
+  current_total_price: string | null;
   subtotal_price: string | null;
   currency: string | null;
   financial_status: string | null;
   cancelled_at: string | null;
+  test: boolean;
   checkout_token: string | null;
   cart_token: string | null;
   customer_id: string | null;
@@ -97,10 +101,12 @@ export function toOrderRow(o: OrderPayload, via: OrderRow["ingested_via"]): Orde
     name: o.name ?? null,
     created_at: o.created_at,
     total_price: o.total_price ?? null,
+    current_total_price: o.current_total_price ?? null,
     subtotal_price: o.subtotal_price ?? null,
     currency: o.currency ?? null,
     financial_status: o.financial_status ?? null,
     cancelled_at: o.cancelled_at ?? null,
+    test: o.test ?? false,
     checkout_token: o.checkout_token ?? null,
     cart_token: o.cart_token ?? null,
     customer_id: o.customer?.id ?? null,

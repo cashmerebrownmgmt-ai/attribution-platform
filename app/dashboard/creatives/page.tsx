@@ -2,7 +2,7 @@ import Link from "next/link";
 import { filterQuery, PLATFORM_LABELS } from "@/lib/dashboard/filters";
 import { money, num, pct, roas, signedPct } from "@/lib/dashboard/format";
 import { loadPage } from "@/lib/dashboard/page";
-import { ctrDecay, fatigue, performance, type PerfRow } from "@/lib/metrics/compute";
+import { ctrDecay, dayOf, fatigue, performance, type PerfRow } from "@/lib/metrics/compute";
 import { adSignal, VERDICT_LABELS, type Signal, type Verdict } from "@/lib/metrics/signals";
 import type { Ad } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
@@ -145,7 +145,7 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
                   <span>{selected.ad.name}</span>
                 </div>
                 <div className={s.cardSub}>
-                  {PLATFORM_LABELS[selected.ad.platform]} · {selected.ad.format ?? "ad"} · launched {selected.ad.launchedAt?.slice(0, 10) ?? "—"}
+                  {PLATFORM_LABELS[selected.ad.platform]} · {selected.ad.format ?? "ad"} · launched {selected.ad.launchedAt ? dayOf(selected.ad.launchedAt) : "—"}
                 </div>
                 <div style={{ marginTop: 12 }}>
                   <VerdictFlag signal={selected.signal} />

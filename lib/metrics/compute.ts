@@ -2,6 +2,7 @@
  * Pure dashboard calculations. Every page is a function of (DashboardData, filters).
  * Definitions: docs/phase-3-spec.md § Metrics.
  */
+import { storeDay } from "../tz";
 import type { Model } from "../attribution";
 import type { Channel } from "../channel";
 import type { Ad, DashboardData, Insight, OrderFact, Platform } from "./types";
@@ -18,7 +19,8 @@ const DAY_MS = 86_400_000;
 
 // ─── Dates ────────────────────────────────────────────────────────────────────
 
-export const dayOf = (iso: string) => iso.slice(0, 10);
+/** The store-time-zone day of a timestamp (see lib/tz.ts). */
+export const dayOf = (iso: string) => storeDay(iso);
 export const addDays = (day: string, n: number) =>
   new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
 

@@ -44,7 +44,7 @@ export function alertsFor(data: DashboardData, now = Date.parse(data.generatedAt
   for (const i of data.insights) if (i.date >= from && i.date < today) spend.set(`${i.platform}:${i.adId}`, (spend.get(`${i.platform}:${i.adId}`) ?? 0) + i.spend);
   const sold = new Set(
     live
-      .filter((o) => o.createdAt.slice(0, 10) >= from && o.createdAt.slice(0, 10) < today && o.touches.last_non_direct.adId)
+      .filter((o) => dayOf(o.createdAt) >= from && dayOf(o.createdAt) < today && o.touches.last_non_direct.adId)
       .map((o) => `${o.touches.last_non_direct.platform}:${o.touches.last_non_direct.adId}`),
   );
   const limit = Math.max(30, 2 * (data.settings.targetCpa ?? 25));
@@ -66,7 +66,7 @@ export function alertsFor(data: DashboardData, now = Date.parse(data.generatedAt
   // 4. Paid return below break-even over the last 7 days.
   const weekFrom = addDays(today, -7);
   const adSpend = data.insights.filter((i) => i.date >= weekFrom && i.date < today).reduce((t, i) => t + i.spend, 0);
-  const adRevenue = live.filter((o) => o.createdAt.slice(0, 10) >= weekFrom && o.createdAt.slice(0, 10) < today && o.touches.last_non_direct.platform).reduce((t, o) => t + o.revenue, 0);
+  const adRevenue = live.filter((o) => dayOf(o.createdAt) >= weekFrom && dayOf(o.createdAt) < today && o.touches.last_non_direct.platform).reduce((t, o) => t + o.revenue, 0);
   const breakeven = data.settings.breakevenRoas;
   if (breakeven && adSpend >= 100 && adRevenue / adSpend < breakeven) {
     alerts.push({

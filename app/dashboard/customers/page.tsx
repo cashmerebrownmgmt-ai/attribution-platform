@@ -1,3 +1,4 @@
+import { addDays, dayOf } from "@/lib/metrics/compute";
 import { CHANNEL_LABELS } from "@/lib/debug";
 import { money, num, pct } from "@/lib/dashboard/format";
 import { loadPage } from "@/lib/dashboard/page";
@@ -13,8 +14,8 @@ export default async function CustomersPage({ searchParams }: PageProps<"/dashbo
   const { mode, data } = await loadPage(searchParams);
   const cur = data.settings.currency;
   const asOf = asOfMs(data.generatedAt);
-  const to = data.generatedAt.slice(0, 10);
-  const from = new Date(asOf - 365 * 86_400_000).toISOString().slice(0, 10);
+  const to = dayOf(data.generatedAt);
+  const from = addDays(to, -365);
   const ltv = ltvByChannel(data, from, to, asOf);
   const all = ltv[0];
   const byChannel = ltv.slice(1).filter((r) => r.customers >= 5);

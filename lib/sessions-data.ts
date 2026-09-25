@@ -17,7 +17,8 @@ export async function loadSessions(mode: "live" | "demo", r: DateRange, today: s
   const out: SessionFact[] = [];
   for (let page = 0; page < 200; page++) {
     const { data, error } = await db()
-      .rpc("session_facts", { p_from: `${from}T00:00:00Z`, p_to: `${addDays(r.to, 1)}T00:00:00Z` })
+      // UTC bounds a day wider than the store-time range; pages then filter by store-time day.
+      .rpc("session_facts", { p_from: `${addDays(from, -1)}T00:00:00Z`, p_to: `${addDays(r.to, 2)}T00:00:00Z` })
       .range(page * 1000, page * 1000 + 999);
     if (error) throw new Error(`session_facts failed: ${error.message}`);
     out.push(...((data ?? []) as SessionFact[]));

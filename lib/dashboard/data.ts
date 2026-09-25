@@ -1,3 +1,4 @@
+import { storeToday } from "../tz";
 import "server-only";
 import { cookies } from "next/headers";
 import { MODELS, type Model } from "../attribution";
@@ -10,7 +11,8 @@ import type { Ad, AdGroup, Campaign, DashboardData, HealthData, Insight, OrderFa
 export type Mode = "live" | "demo";
 export const MODE_COOKIE = "ap_mode";
 
-export const todayUtc = () => new Date().toISOString().slice(0, 10);
+/** Today in the store's time zone (kept under this name for existing callers). */
+export const todayUtc = () => storeToday();
 
 export async function currentMode(): Promise<Mode> {
   // Real data unless this browser explicitly switched to demo, so a new device never shows sample numbers.

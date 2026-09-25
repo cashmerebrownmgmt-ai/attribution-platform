@@ -13,10 +13,12 @@ const order = (o: Partial<OrderRow> = {}): OrderRow => ({
   name: "#1001",
   created_at: "2026-09-24T18:00:00Z",
   total_price: "84.50",
+  current_total_price: null,
   subtotal_price: "75.00",
   currency: "USD",
   financial_status: "paid",
   cancelled_at: null,
+  test: false,
   checkout_token: "tok",
   cart_token: null,
   customer_id: "c1",
@@ -133,5 +135,27 @@ describe("join_team", () => {
     expect(await join(U3, "Teammate@example.com")).toBe("viewer");
     const { rows } = await pg.query("select count(*)::int n from invites");
     expect(rows).toEqual([{ n: 0 }]); // invite used up
+  });
+});
+
+describe("order_facts revenue", () => {
+  const upsert = (o: Partial<OrderRow>) => pg.query("select public.upsert_order($1)", [JSON.stringify(order(o))]);
+  const facts = async () => (await pg.query<{ id: string; revenue: string }>("select id, revenue::text from public.order_facts order by id")).rows;
+
+  it("uses the total after refunds, and keeps it when a later payload lacks it", async () => {
+    await upsert({ id: "1", total_price: "50.00" });
+    expect(await facts()).toEqual([{ id: "1", revenue: "50.00" }]);
+    await upsert({ id: "1", total_price: "50.00", current_total_price: "20.00", shopify_updated_at: "2026-09-24T19:00:00Z" });
+    expect(await facts()).toEqual([{ id: "1", revenue: "20.00" }]);
+    await upsert({ id: "1", total_price: "50.00", current_total_price: null, shopify_updated_at: "2026-09-24T20:00:00Z" });
+    expect(await facts()).toEqual([{ id: "1", revenue: "20.00" }]);
+  });
+
+  it("leaves Shopify test orders out, including from new-customer checks", async () => {
+    await upsert({ id: "1", test: true, created_at: "2026-09-20T10:00:00Z" });
+    await upsert({ id: "2", created_at: "2026-09-24T10:00:00Z" });
+    expect((await facts()).map((f) => f.id)).toEqual(["2"]);
+    const { rows } = await pg.query<{ is_new_customer: boolean }>("select is_new_customer from public.order_facts where id = '2'");
+    expect(rows).toEqual([{ is_new_customer: true }]); // the earlier test order by the same customer doesn't count
   });
 });

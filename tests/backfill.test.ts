@@ -12,6 +12,12 @@ const node = (id: string, o: Partial<GqlOrder> = {}): GqlOrder => ({
 });
 
 describe("mapOrder", () => {
+  it("keeps the total after refunds and the test-order flag", () => {
+    const { order } = mapOrder(node("1002", { test: true, currentTotalPriceSet: { shopMoney: { amount: "9.99" } } }));
+    expect(order).toMatchObject({ total_price: "29.99", current_total_price: "9.99", test: true });
+    expect(mapOrder(node("1003")).order).toMatchObject({ current_total_price: null, test: false });
+  });
+
   it("maps a GraphQL order and its line items to rows", () => {
     const { order, items } = mapOrder(node("1001"));
     expect(order).toMatchObject({ id: "1001", total_price: "29.99", financial_status: "paid", customer_id: "77", ingested_via: "backfill", shopify_updated_at: "2026-09-01T10:05:00Z", note_attributes: [{ name: "_ap_vid", value: "11111111-1111-4111-8111-111111111111" }] });

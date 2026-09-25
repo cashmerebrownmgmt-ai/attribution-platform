@@ -6,6 +6,7 @@ import { todayUtc } from "@/lib/dashboard/data";
 import { delta } from "@/lib/metrics/compute";
 import { AD_PLATFORMS, type Platform } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
+import { RefreshButton } from "./RefreshButton";
 import { Suspense } from "react";
 import { ExportMenu } from "./ExportMenu";
 import { FilterBar } from "./FilterBar";
@@ -25,7 +26,8 @@ export function PageHead({ title, subtitle, mode, action, exportable = true }: {
         <h1 className={s.title}>{title}</h1>
         {subtitle && <p className={s.subtitle}>{subtitle}</p>}
       </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+        <RefreshButton />
         {action}
         {exportable && (
           <Suspense>
