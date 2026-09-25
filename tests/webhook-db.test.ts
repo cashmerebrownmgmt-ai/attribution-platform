@@ -159,3 +159,24 @@ describe("order_facts revenue", () => {
     expect(rows).toEqual([{ is_new_customer: true }]); // the earlier test order by the same customer doesn't count
   });
 });
+
+describe("re-importing unchanged orders", () => {
+  const upsert = (o: Partial<OrderRow>) => pg.query("select public.upsert_order($1)", [JSON.stringify(order(o))]);
+  it("fills the total after refunds and the test flag without other changes", async () => {
+    await upsert({ id: "7", ingested_via: "webhook", checkout_token: "keep-me" });
+    await upsert({ id: "7", ingested_via: "backfill", checkout_token: null, current_total_price: "84.50" });
+    await upsert({ id: "8", ingested_via: "backfill" });
+    await upsert({ id: "8", ingested_via: "backfill", test: true });
+    const { rows } = await pg.query("select id, current_total_price::text, test, checkout_token, ingested_via from public.orders where id in ('7', '8') order by id");
+    expect(rows).toEqual([
+      { id: "7", current_total_price: "84.50", test: false, checkout_token: "keep-me", ingested_via: "webhook" },
+      { id: "8", current_total_price: null, test: true, checkout_token: "tok", ingested_via: "backfill" },
+    ]);
+  });
+  it("still ignores an older payload", async () => {
+    await upsert({ id: "9", current_total_price: "10.00", shopify_updated_at: "2026-09-24T20:00:00Z" });
+    await upsert({ id: "9", current_total_price: "99.00", shopify_updated_at: "2026-09-24T19:00:00Z" });
+    const { rows } = await pg.query("select current_total_price::text from public.orders where id = '9'");
+    expect(rows).toEqual([{ current_total_price: "10.00" }]);
+  });
+});
