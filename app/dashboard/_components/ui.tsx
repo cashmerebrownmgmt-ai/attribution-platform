@@ -52,7 +52,7 @@ export function ModeSwitch({ mode }: { mode: "live" | "demo" }) {
   );
 }
 
-export function Filters({ f, showPlatform = true }: { f: ParsedFilters; showPlatform?: boolean }) {
+export function Filters({ f, showPlatform = true, showModel = true }: { f: ParsedFilters; showPlatform?: boolean; showModel?: boolean }) {
   return (
     <FilterBar
       preset={f.preset}
@@ -66,6 +66,7 @@ export function Filters({ f, showPlatform = true }: { f: ParsedFilters; showPlat
       models={MODELS.map((m) => ({ value: m, label: MODEL_LABELS[m] }))}
       platforms={[{ value: "all", label: "All platforms" }, ...AD_PLATFORMS.map((p) => ({ value: p, label: PLATFORM_LABELS[p] }))]}
       showPlatform={showPlatform}
+      showModel={showModel}
     />
   );
 }

@@ -46,3 +46,32 @@ describe("save_stitch", () => {
     expect(a.rows).toEqual([{ n: 1 }]);
   });
 });
+
+describe("session_facts", () => {
+  const V2 = "33333333-3333-4333-8333-333333333333";
+  const S1 = "44444444-4444-4444-8444-444444444444";
+  const S2 = "55555555-5555-4555-8555-555555555555";
+  let n = 0;
+  const id = () => `66666666-6666-4666-8666-${String(++n).padStart(12, "0")}`;
+  async function ev(o: Record<string, unknown>) {
+    const cols = Object.keys(o);
+    await pg.query(`insert into events (${cols.join(",")}) values (${cols.map((_, i) => `$${i + 1}`).join(",")})`, Object.values(o));
+  }
+
+  it("builds one row per session with source, funnel and new/returning flags", async () => {
+    await pg.exec(`insert into visitors (id, first_seen_at) values ('${V2}', '2026-09-20T10:00:00Z')`);
+    // Session 1: new visitor via a campaign, adds to cart, completes checkout.
+    await ev({ id: id(), visitor_id: V2, session_id: S1, type: "page_view", source: "tracker", occurred_at: "2026-09-20T10:00:00Z", path: "/", title: "Home", device: "mobile", country: "US", city: "Chicago", utm_source: "ig", utm_medium: "paid_social", is_touchpoint: true });
+    await ev({ id: id(), visitor_id: V2, session_id: S1, type: "page_view", source: "tracker", occurred_at: "2026-09-20T10:01:00Z", path: "/cart" });
+    await ev({ id: id(), visitor_id: V2, session_id: S1, type: "add_to_cart", source: "tracker", occurred_at: "2026-09-20T10:01:05Z", path: "/cart" });
+    await ev({ id: id(), visitor_id: V2, type: "checkout_started", source: "pixel", occurred_at: "2026-09-20T10:02:00Z" });
+    await ev({ id: id(), visitor_id: V2, type: "checkout_completed", source: "pixel", occurred_at: "2026-09-20T10:04:00Z" });
+    // Session 2: same visitor returns directly the next day, bounces.
+    await ev({ id: id(), visitor_id: V2, session_id: S2, type: "page_view", source: "tracker", occurred_at: "2026-09-21T09:00:00Z", path: "/collections/all" });
+
+    const { rows } = await pg.query<Record<string, unknown>>("select * from public.session_facts('2026-09-19', '2026-09-22')");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({ session_id: S1, pageviews: 2, landing_path: "/", exit_path: "/cart", utm_source: "ig", device: "mobile", city: "Chicago", is_new_visitor: true, added_to_cart: true, reached_checkout: true, completed_checkout: true });
+    expect(rows[1]).toMatchObject({ session_id: S2, pageviews: 1, utm_source: null, is_new_visitor: false, added_to_cart: false, reached_checkout: false });
+  });
+});

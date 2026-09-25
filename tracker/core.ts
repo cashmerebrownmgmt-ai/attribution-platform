@@ -7,6 +7,9 @@ import { CLICK_ID_KEYS, UTM_KEYS } from "../lib/source";
 export const VISITOR_COOKIE = "_ap_vid";
 export const CART_ATTRIBUTE = "_ap_vid";
 export const SESSION_KEY = "_ap_s";
+/** Last seen cart item count, and the session an add-to-cart was already reported for. */
+export const CART_COUNT_KEY = "_ap_cc";
+export const ADD_TO_CART_KEY = "_ap_atc";
 export const SESSION_IDLE_MS = 30 * 60 * 1000;
 export const COOKIE_MAX_AGE_S = 395 * 24 * 60 * 60;
 
@@ -104,4 +107,18 @@ export type CartSnapshot = { item_count?: number; attributes?: Record<string, un
  */
 export function cartNeedsTag(cart: CartSnapshot | null, visitorId: string): boolean {
   return !!cart && (cart.item_count ?? 0) > 0 && cart.attributes?.[CART_ATTRIBUTE] !== visitorId;
+}
+
+/**
+ * Report at most one add-to-cart per session (that's how funnels count "sessions with cart
+ * additions"): when the cart's item count went up since the last page view in this session.
+ */
+export function cartCountIncreased(previous: string | null, current: number): boolean {
+  const prev = previous === null ? null : Number(previous);
+  return prev !== null && Number.isFinite(prev) && current > prev;
+}
+
+/** True for a form submission that adds to the Shopify cart (product forms post to /cart/add). */
+export function isAddToCartAction(action: string | null | undefined): boolean {
+  return !!action && /\/cart\/add(\.js)?(\?|$|#)/.test(action);
 }

@@ -549,3 +549,24 @@
   .liveTrail { padding-left: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { .liveDot { animation: none; } }
+
+/* ── Funnel ─────────────────────────────────────────────────────────────── */
+.funnel { display: grid; gap: 10px; }
+.funnelRow { display: grid; gap: 4px; }
+.funnelLabel { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; }
+.funnelTrack { height: 18px; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+.funnelTrack span { display: block; height: 100%; background: var(--s1); border-radius: 0 5px 5px 0; }
+.funnelDrop { font-size: 11px; color: var(--muted); }
+
+/* ── Tips ───────────────────────────────────────────────────────────────── */
+.tips { display: grid; gap: 8px; }
+.tip { border: 1px solid var(--ring); border-radius: 10px; background: var(--surface-2); padding: 0 14px; }
+.tip summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 11px 0; }
+.tip summary::-webkit-details-marker { display: none; }
+.tip summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.tipArea { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); }
+.tipTitle { font-weight: 650; font-size: 13.5px; flex: 1 1 260px; }
+.tipImpact { font-size: 11.5px; font-weight: 600; color: var(--good-text); white-space: nowrap; }
+.tipWhy { margin: 0 0 8px; color: var(--ink-2); font-size: 12.5px; }
+.tipActions { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 4px; font-size: 12.5px; }
+.tip[open] { padding-bottom: 12px; }

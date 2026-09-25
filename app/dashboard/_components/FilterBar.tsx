@@ -18,10 +18,11 @@ type Props = {
   models: Option[];
   platforms: Option[];
   showPlatform?: boolean;
+  showModel?: boolean;
 };
 
 /** One row of filters above the page. Changes go into the URL so views are shareable. */
-export function FilterBar({ preset, from, to, today, model, platform, rangeText, presets, models, platforms, showPlatform = true }: Props) {
+export function FilterBar({ preset, from, to, today, model, platform, rangeText, presets, models, platforms, showPlatform = true, showModel = true }: Props) {
   const router = useRouter();
   const path = usePathname();
   const params = useSearchParams();
@@ -60,13 +61,15 @@ export function FilterBar({ preset, from, to, today, model, platform, rangeText,
           })
         }
       />
-      <select className={s.select} aria-label="Attribution model" value={model} onChange={(e) => set("model", e.target.value, "last_non_direct")}>
-        {models.map((m) => (
-          <option key={m.value} value={m.value}>
-            {m.label}
-          </option>
-        ))}
-      </select>
+      {showModel && (
+        <select className={s.select} aria-label="Attribution model" value={model} onChange={(e) => set("model", e.target.value, "last_non_direct")}>
+          {models.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label}
+            </option>
+          ))}
+        </select>
+      )}
       {showPlatform && (
         <select className={s.select} aria-label="Platform" value={platform} onChange={(e) => set("platform", e.target.value, "all")}>
           {platforms.map((p) => (

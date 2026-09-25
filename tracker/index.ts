@@ -4,7 +4,11 @@
  * Events go to /api/collect on the same origin the script was loaded from.
  */
 import {
+  ADD_TO_CART_KEY,
   CART_ATTRIBUTE,
+  CART_COUNT_KEY,
+  cartCountIncreased,
+  isAddToCartAction,
   SESSION_KEY,
   VISITOR_COOKIE,
   cartNeedsTag,
@@ -54,16 +58,42 @@ function send(w: TrackerWindow, endpoint: string, body: object): void {
   void w.fetch(endpoint, { method: "POST", body: json, keepalive: true, mode: "cors", credentials: "omit" }).catch(() => {});
 }
 
+type Ctx = { w: TrackerWindow; endpoint: string; visitorId: string; sessionId: string };
+
+/** One add_to_cart event per session. */
+function reportAddToCart(c: Ctx): void {
+  const done = safe(() => c.w.sessionStorage.getItem(ADD_TO_CART_KEY), null);
+  if (done === c.sessionId) return;
+  safe(() => c.w.sessionStorage.setItem(ADD_TO_CART_KEY, c.sessionId), undefined);
+  send(c.w, c.endpoint, {
+    id: uuid(c.w.crypto),
+    visitor_id: c.visitorId,
+    session_id: c.sessionId,
+    type: "add_to_cart",
+    source: "tracker",
+    occurred_at: Date.now(),
+    url: c.w.location.href,
+    referrer: null,
+    title: c.w.document.title ? c.w.document.title.slice(0, 300) : null,
+  });
+}
+
 /**
- * Put the visitor ID on the cart so Shopify copies it onto the order's note_attributes. Checked on
- * every page view (one small /cart.js read); only writes when the cart has items and isn't tagged.
- * Shopify merges attributes, so other apps' cart attributes are kept.
+ * Put the visitor ID on the cart so Shopify copies it onto the order's note_attributes, and notice
+ * cart additions made since the last page view. Checked on every page view (one small /cart.js
+ * read); only writes when the cart has items and isn't tagged. Shopify merges attributes, so other
+ * apps' cart attributes are kept.
  */
-async function syncCart(w: TrackerWindow, visitorId: string): Promise<void> {
+async function syncCart(c: Ctx): Promise<void> {
+  const { w, visitorId } = c;
   const root = w.Shopify?.routes?.root ?? "/"; // non-default for multi-language stores, e.g. "/en-ca/"
   const res = await w.fetch(`${root}cart.js`, { credentials: "same-origin" });
   if (!res.ok) return;
   const cart = (await res.json()) as { item_count?: number; attributes?: Record<string, unknown> };
+  const count = cart.item_count ?? 0;
+  const previous = safe(() => w.sessionStorage.getItem(CART_COUNT_KEY), null);
+  if (cartCountIncreased(previous, count)) reportAddToCart(c);
+  safe(() => w.sessionStorage.setItem(CART_COUNT_KEY, String(count)), undefined);
   if (!cartNeedsTag(cart, visitorId)) return;
   await w.fetch(`${root}cart/update.js`, {
     method: "POST",
@@ -93,7 +123,17 @@ export function track(w: TrackerWindow, endpoint: string): void {
     title: w.document.title ? w.document.title.slice(0, 300) : null,
   });
 
-  void syncCart(w, visitorId).catch(() => {});
+  const ctx: Ctx = { w, endpoint, visitorId, sessionId: session.id };
+  // Classic product forms post to /cart/add; catch them as they're submitted.
+  w.document.addEventListener(
+    "submit",
+    (e) => {
+      const form = e.target as HTMLFormElement | null;
+      if (form && isAddToCartAction(form.getAttribute("action"))) safe(() => reportAddToCart(ctx), undefined);
+    },
+    true,
+  );
+  void syncCart(ctx).catch(() => {});
 }
 
 /**

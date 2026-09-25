@@ -113,3 +113,21 @@ describe("cartNeedsTag", () => {
     expect(cartNeedsTag({ item_count: 1, attributes: { _ap_vid: "someone-else" } }, V)).toBe(true);
   });
 });
+
+import { cartCountIncreased, isAddToCartAction } from "@/tracker/core";
+
+describe("add-to-cart detection", () => {
+  it("fires only when the item count rises within a session", () => {
+    expect(cartCountIncreased(null, 2)).toBe(false); // first look
+    expect(cartCountIncreased("0", 1)).toBe(true);
+    expect(cartCountIncreased("2", 2)).toBe(false);
+    expect(cartCountIncreased("3", 1)).toBe(false);
+  });
+  it("recognizes Shopify product form actions", () => {
+    expect(isAddToCartAction("/cart/add")).toBe(true);
+    expect(isAddToCartAction("/en-ca/cart/add?view=x")).toBe(true);
+    expect(isAddToCartAction("/cart/add.js")).toBe(true);
+    expect(isAddToCartAction("/cart")).toBe(false);
+    expect(isAddToCartAction(null)).toBe(false);
+  });
+});
