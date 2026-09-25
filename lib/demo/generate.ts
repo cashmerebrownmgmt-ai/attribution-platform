@@ -231,6 +231,17 @@ const PRODUCTS = [
   { key: "p-free-sample", title: "Starter Sample Pack", price: 9 },
 ];
 
+/** A stable 64-hex stand-in for an email hash in demo data (not a real hash of anything). */
+function demoHash(key: string): string {
+  let h = 2166136261;
+  let out = "";
+  for (let round = 0; out.length < 64; round++) {
+    for (const ch of `${key}:${round}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+    out += h.toString(16).padStart(8, "0");
+  }
+  return out.slice(0, 64);
+}
+
 const THUMB_HUES: Record<Platform, number> = { meta: 220, google: 140, tiktok: 330, microsoft: 200 };
 
 // ─── Generator ────────────────────────────────────────────────────────────────
@@ -323,6 +334,7 @@ export function generateDemo({ endDay, days = 200, seed = 42 }: DemoOptions): Da
       path,
       daysToPurchase,
       customerKey,
+      emailHash: demoHash(customerKey),
       items,
     };
   };

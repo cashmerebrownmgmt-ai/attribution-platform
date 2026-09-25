@@ -94,6 +94,7 @@ async function loadLive(): Promise<DashboardData> {
   ]);
 
   const customerOf = new Map(customers.map((c) => [c.id, c.customer_id ? `c:${c.customer_id}` : c.email_hash ? `e:${c.email_hash}` : null]));
+  const emailOf = new Map(customers.map((c) => [c.id, c.email_hash]));
   const itemsOf = new Map<string, OrderFact["items"]>();
   for (const i of items) {
     const list = itemsOf.get(i.order_id) ?? [];
@@ -130,6 +131,7 @@ async function loadLive(): Promise<DashboardData> {
       path: o.stitch_method === "none" ? [] : path,
       daysToPurchase: first ? Math.max(0, Math.floor((Date.parse(o.created_at) - Date.parse(first)) / 86_400_000)) : null,
       customerKey: customerOf.get(o.id) ?? null,
+      emailHash: emailOf.get(o.id) ?? null,
       items: itemsOf.get(o.id) ?? [],
     };
   });

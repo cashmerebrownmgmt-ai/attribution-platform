@@ -31,6 +31,8 @@ export type OrderFact = {
   daysToPurchase: number | null;
   /** Shopify customer ID or email hash; null when unknown (guest with no email). */
   customerKey: string | null;
+  /** SHA-256 of the normalized email (never the email). Only needed for audience exports. */
+  emailHash?: string | null;
   items: OrderItem[];
 };
 

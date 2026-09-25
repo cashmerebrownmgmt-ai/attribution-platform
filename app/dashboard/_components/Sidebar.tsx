@@ -12,6 +12,7 @@ const NAV = [
   { href: "/dashboard/creatives", label: "Creatives", icon: "M4 4h7v9H4zM13 4h7v5h-7zM13 11h7v9h-7zM4 15h7v5H4z" },
   { href: "/dashboard/products", label: "Products", icon: "M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10" },
   { href: "/dashboard/customers", label: "Customers", icon: "M16 11a4 4 0 1 0-8 0 4 4 0 0 0 8 0zM4 21a8 8 0 0 1 16 0" },
+  { href: "/dashboard/audiences", label: "Audiences", icon: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20a6 6 0 0 1 12 0M17 11a3 3 0 1 0 0-6M21 20a6 6 0 0 0-4-5.6" },
   { href: "/dashboard/trends", label: "Trend radar", icon: "M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0M12 12l6-6M12 3a9 9 0 1 0 9 9M12 7a5 5 0 1 0 5 5" },
   { href: "/dashboard/journeys", label: "Journeys", icon: "M4 6c6 0 6 12 16 12M4 18c6 0 6-12 16-12" },
   { href: "/dashboard/health", label: "Tracking health", icon: "M3 12h4l3-7 4 14 3-7h4" },
