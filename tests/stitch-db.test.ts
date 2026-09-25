@@ -117,3 +117,16 @@ describe("alert_log", () => {
     expect(p.rows).toHaveLength(0);
   });
 });
+
+describe("daily_reports", () => {
+  it("stores one snapshot per day, with RLS on and no policies", async () => {
+    await pg.query(`insert into daily_reports (day, generated_at, report) values ('2026-09-24', now(), '{"summary": ["a"]}')`);
+    await pg.query(`insert into daily_reports (day, generated_at, report) values ('2026-09-24', now(), '{"summary": ["b"]}') on conflict (day) do update set report = excluded.report`);
+    const { rows } = await pg.query<{ report: { summary: string[] } }>("select report from daily_reports");
+    expect(rows).toEqual([{ report: { summary: ["b"] } }]);
+    const rls = await pg.query("select 1 from pg_class where relname = 'daily_reports' and relrowsecurity");
+    expect(rls.rows).toHaveLength(1);
+    const p = await pg.query("select 1 from pg_policies where tablename = 'daily_reports'");
+    expect(p.rows).toHaveLength(0);
+  });
+});

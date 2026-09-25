@@ -10,6 +10,7 @@ import { LineChart } from "./_components/charts/LineChart";
 import { DataTable } from "./_components/DataTable";
 import { Inspector, Preview } from "./_components/Inspector";
 import { Card, Filters, Kpi, PageHead, PLATFORM_COLORS, TableToggle } from "./_components/ui";
+import { longDay, reportDayFor } from "@/lib/daily-report";
 import { inspectHref } from "@/lib/dashboard/inspect";
 
 /** Rolling mean over the last `n` points (smooths daily ROAS). */
@@ -48,6 +49,12 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
   return (
     <>
       <PageHead title="Overview" subtitle={t.businessName ?? "How your marketing is performing"} mode={mode} />
+      <Link href="/dashboard/daily" className={s.callout} style={{ display: "flex", justifyContent: "space-between", gap: 12, textDecoration: "none", color: "inherit" }}>
+        <span>
+          <b>Your daily report is ready:</b> {longDay(reportDayFor(Date.parse(data.generatedAt)))}
+        </span>
+        <span style={{ color: "var(--s1)", whiteSpace: "nowrap" }}>Read it →</span>
+      </Link>
       <Filters f={f} />
 
       {mode === "live" && data.orders.length === 0 && (

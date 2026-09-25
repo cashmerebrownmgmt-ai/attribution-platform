@@ -5,6 +5,7 @@ import s from "../dashboard.module.css";
 
 const NAV = [
   { href: "/dashboard", label: "Overview", icon: "M3 13h4v8H3zM10 9h4v12h-4zM17 4h4v17h-4z" },
+  { href: "/dashboard/daily", label: "Daily report", icon: "M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" },
   { href: "/dashboard/live", label: "Live", icon: "M12 12m-2 0a2 2 0 1 0 4 0a2 2 0 1 0-4 0M7.5 7.5a6.4 6.4 0 0 0 0 9M16.5 7.5a6.4 6.4 0 0 1 0 9M4.6 4.6a10.5 10.5 0 0 0 0 14.8M19.4 4.6a10.5 10.5 0 0 1 0 14.8" },
   { href: "/dashboard/sessions", label: "Sessions", icon: "M4 19V9M10 19V5M16 19v-7M22 19H2" },
   { href: "/dashboard/channels", label: "Channels", icon: "M4 6h16M4 12h10M4 18h6" },
