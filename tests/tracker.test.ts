@@ -9,6 +9,7 @@ type Beacon = { url: string; body: Record<string, unknown> };
 let beacons: Beacon[];
 let fetchMock: ReturnType<typeof vi.fn>;
 let cartAttributes: Record<string, string>;
+let cartItems: number;
 
 function clearCookies() {
   for (const c of document.cookie.split(";")) {
@@ -30,8 +31,9 @@ beforeEach(() => {
     },
   });
   cartAttributes = {};
+  cartItems = 1;
   fetchMock = vi.fn(async (url: string, opts?: RequestInit) => {
-    if (url.endsWith("cart.js")) return new Response(JSON.stringify({ token: "c1", attributes: cartAttributes }));
+    if (url.endsWith("cart.js")) return new Response(JSON.stringify({ token: "c1", item_count: cartItems, attributes: cartAttributes }));
     if (url.endsWith("cart/update.js")) {
       Object.assign(cartAttributes, JSON.parse(String(opts?.body)).attributes);
       return new Response("{}");
@@ -94,35 +96,35 @@ describe("track", () => {
     expect(fetchMock).toHaveBeenCalledWith(ENDPOINT, expect.objectContaining({ method: "POST", keepalive: true }));
   });
 
-  it("writes the visitor ID to the cart once per cart", async () => {
-    document.cookie = "cart=c1; path=/";
+  it("tags a non-empty cart with the visitor ID, without needing a cart cookie", async () => {
+    cartAttributes.__comet_token = "other-app";
     track(window, ENDPOINT);
     await flush();
     expect(cartAttributes._ap_vid).toBe(beacons[0].body.visitor_id);
+    expect(cartAttributes.__comet_token).toBe("other-app"); // other apps' attributes kept
     expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith("cart/update.js"))).toHaveLength(1);
 
+    // Already tagged: later page views only read the cart.
     track(window, ENDPOINT);
     await flush();
-    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith("cart.js"))).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([u]) => String(u).endsWith("cart/update.js"))).toHaveLength(1);
   });
 
-  it("skips the update when the cart already has the attribute", async () => {
-    document.cookie = "_ap_vid=44444444-4444-4444-8444-444444444444; path=/";
-    document.cookie = "cart=c1; path=/";
-    cartAttributes._ap_vid = "44444444-4444-4444-8444-444444444444";
+  it("leaves an empty cart alone", async () => {
+    cartItems = 0;
     track(window, ENDPOINT);
     await flush();
     expect(fetchMock.mock.calls.some(([u]) => String(u).endsWith("cart/update.js"))).toBe(false);
   });
 
-  it("does nothing with the cart when there is no cart cookie", async () => {
+  it("uses the store's locale root for cart requests", async () => {
+    (window as { Shopify?: unknown }).Shopify = { routes: { root: "/en-ca/" } };
     track(window, ENDPOINT);
     await flush();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.map(([u]) => String(u))).toContain("/en-ca/cart.js");
   });
 
   it("swallows cart errors", async () => {
-    document.cookie = "cart=c1; path=/";
     fetchMock.mockRejectedValue(new Error("offline"));
     expect(() => track(window, ENDPOINT)).not.toThrow();
     await flush();

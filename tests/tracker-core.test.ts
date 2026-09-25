@@ -2,7 +2,7 @@ import { webcrypto } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   SESSION_IDLE_MS,
-  cartNeedsCheck,
+  cartNeedsTag,
   cookieDomainCandidates,
   isUuid,
   nextSession,
@@ -102,11 +102,14 @@ describe("parseSession", () => {
   });
 });
 
-describe("cartNeedsCheck", () => {
-  it("checks only when a cart exists and hasn't been synced this session", () => {
-    expect(cartNeedsCheck(null, null)).toBe(false);
-    expect(cartNeedsCheck("c1", null)).toBe(true);
-    expect(cartNeedsCheck("c1", "c1")).toBe(false);
-    expect(cartNeedsCheck("c2", "c1")).toBe(true);
+describe("cartNeedsTag", () => {
+  const V = "44444444-4444-4444-8444-444444444444";
+  it("tags only a non-empty cart that isn't already tagged with this visitor", () => {
+    expect(cartNeedsTag(null, V)).toBe(false);
+    expect(cartNeedsTag({ item_count: 0, attributes: {} }, V)).toBe(false);
+    expect(cartNeedsTag({ item_count: 2, attributes: {} }, V)).toBe(true);
+    expect(cartNeedsTag({ item_count: 2, attributes: { __comet_token: "x" } }, V)).toBe(true);
+    expect(cartNeedsTag({ item_count: 2, attributes: { _ap_vid: V } }, V)).toBe(false);
+    expect(cartNeedsTag({ item_count: 1, attributes: { _ap_vid: "someone-else" } }, V)).toBe(true);
   });
 });

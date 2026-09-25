@@ -7,7 +7,6 @@ import { CLICK_ID_KEYS, UTM_KEYS } from "../lib/source";
 export const VISITOR_COOKIE = "_ap_vid";
 export const CART_ATTRIBUTE = "_ap_vid";
 export const SESSION_KEY = "_ap_s";
-export const CART_SYNC_KEY = "_ap_cart";
 export const SESSION_IDLE_MS = 30 * 60 * 1000;
 export const COOKIE_MAX_AGE_S = 395 * 24 * 60 * 60;
 
@@ -97,10 +96,12 @@ export function parseSession(raw: string | null): Session | null {
   }
 }
 
+export type CartSnapshot = { item_count?: number; attributes?: Record<string, unknown> | null };
+
 /**
- * Whether to call /cart/update.js. Only when a cart exists, and only once per cart token per
- * session. Checking the cart's current attribute happens after fetching /cart.js.
+ * Whether to tag the cart with the visitor ID: only when it has items and isn't tagged with this
+ * visitor yet. (Stores don't reliably expose the cart cookie to scripts, so we read /cart.js.)
  */
-export function cartNeedsCheck(cartToken: string | null, lastSyncedToken: string | null): boolean {
-  return !!cartToken && cartToken !== lastSyncedToken;
+export function cartNeedsTag(cart: CartSnapshot | null, visitorId: string): boolean {
+  return !!cart && (cart.item_count ?? 0) > 0 && cart.attributes?.[CART_ATTRIBUTE] !== visitorId;
 }

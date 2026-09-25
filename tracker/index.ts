@@ -5,10 +5,9 @@
  */
 import {
   CART_ATTRIBUTE,
-  CART_SYNC_KEY,
   SESSION_KEY,
   VISITOR_COOKIE,
-  cartNeedsCheck,
+  cartNeedsTag,
   cookieDomainCandidates,
   isUuid,
   nextSession,
@@ -55,27 +54,23 @@ function send(w: TrackerWindow, endpoint: string, body: object): void {
   void w.fetch(endpoint, { method: "POST", body: json, keepalive: true, mode: "cors", credentials: "omit" }).catch(() => {});
 }
 
-/** Put the visitor ID on the cart so Shopify copies it onto the order's note_attributes. */
+/**
+ * Put the visitor ID on the cart so Shopify copies it onto the order's note_attributes. Checked on
+ * every page view (one small /cart.js read); only writes when the cart has items and isn't tagged.
+ * Shopify merges attributes, so other apps' cart attributes are kept.
+ */
 async function syncCart(w: TrackerWindow, visitorId: string): Promise<void> {
-  const token = readCookie(w.document.cookie, "cart");
-  const synced = safe(() => w.sessionStorage.getItem(CART_SYNC_KEY), null);
-  if (!cartNeedsCheck(token, synced)) return;
-
-  const root = w.Shopify?.routes?.root ?? "/"; // non-default for multi-language stores, e.g. "/fr/"
-  const cart = (await (await w.fetch(`${root}cart.js`, { credentials: "same-origin" })).json()) as {
-    token?: string;
-    attributes?: Record<string, unknown>;
-  };
-  if (cart.attributes?.[CART_ATTRIBUTE] !== visitorId) {
-    const res = await w.fetch(`${root}cart/update.js`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ attributes: { [CART_ATTRIBUTE]: visitorId } }),
-    });
-    if (!res.ok) return;
-  }
-  safe(() => w.sessionStorage.setItem(CART_SYNC_KEY, token ?? ""), undefined);
+  const root = w.Shopify?.routes?.root ?? "/"; // non-default for multi-language stores, e.g. "/en-ca/"
+  const res = await w.fetch(`${root}cart.js`, { credentials: "same-origin" });
+  if (!res.ok) return;
+  const cart = (await res.json()) as { item_count?: number; attributes?: Record<string, unknown> };
+  if (!cartNeedsTag(cart, visitorId)) return;
+  await w.fetch(`${root}cart/update.js`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ attributes: { [CART_ATTRIBUTE]: visitorId } }),
+  });
 }
 
 export function track(w: TrackerWindow, endpoint: string): void {
