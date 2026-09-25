@@ -7,7 +7,8 @@ import { ownerEmail } from "@/lib/access";
 import { getAdAccounts, getSettings } from "@/lib/settings";
 import s from "../dashboard.module.css";
 import { Card, PageHead } from "../_components/ui";
-import { saveProfile, saveTargets } from "./actions";
+import { MIN_PASSWORD, PASSWORD_MESSAGES } from "@/lib/password";
+import { saveProfile, saveTargets, setPassword } from "./actions";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -27,6 +28,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/dashboa
   const error = one(p.error);
   const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
   const profile = settings?.business_profile ?? {};
+  const pw = one(p.pw) as keyof typeof PASSWORD_MESSAGES | undefined;
+  const pwMessage = pw ? PASSWORD_MESSAGES[pw] : undefined;
 
   return (
     <>
@@ -145,6 +148,36 @@ export default async function SettingsPage({ searchParams }: PageProps<"/dashboa
             </div>
           </div>
           <p className={s.hint} style={{ marginTop: 10 }}>To change who has access, update <code>OWNER_EMAIL</code> in your environment variables (Vercel → Settings → Environment Variables) and redeploy.</p>
+        </Card>
+
+        <Card title="Security" sub="Sign in with your email and a password. Email links still work as a backup.">
+          <form action={setPassword} className={s.form} id="security">
+            <fieldset disabled={me.role !== "owner" || me.devBypass} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 14 }}>
+              {/* Lets password managers save the login under the right account. */}
+              <input type="email" name="username" autoComplete="username" value={me.email ?? ""} readOnly hidden />
+              <div className={s.field}>
+                <label htmlFor="password">New password</label>
+                <input id="password" name="password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} maxLength={128} required />
+              </div>
+              <div className={s.field}>
+                <label htmlFor="confirm">Confirm new password</label>
+                <input id="confirm" name="confirm" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} maxLength={128} required />
+              </div>
+              <div>
+                <button className={`${s.button} ${s.buttonPrimary}`} type="submit">
+                  Set password
+                </button>
+                {pwMessage && (
+                  <span className={pw === "set" ? s.goodText : s.badText} style={{ marginLeft: 10 }} role={pw === "set" ? "status" : "alert"}>
+                    {pwMessage}
+                  </span>
+                )}
+              </div>
+              <p className={s.hint} style={{ margin: 0 }}>
+                At least {MIN_PASSWORD} characters. You stay signed in on this device until you sign out or clear your browser data.
+              </p>
+            </fieldset>
+          </form>
         </Card>
 
         <Card title="Ad accounts" sub="Spend and creative data. Meta refreshes every morning; Google and TikTok connect once their API access is approved.">

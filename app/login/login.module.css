@@ -17,3 +17,5 @@
 .msg { margin: 0 0 16px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--ring); font-size: 13px; }
 .bad { color: var(--bad); }
 .good { color: var(--good); }
+.alt { margin: 16px 0 0; font-size: 13px; color: var(--ink-2); }
+.alt a { color: var(--accent); }

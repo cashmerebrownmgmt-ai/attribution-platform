@@ -3,7 +3,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireMember } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { passwordProblem } from "@/lib/password";
 import { profileSchema, settingsSchema } from "@/lib/settings";
+import { supabaseServer } from "@/lib/supabase/server";
 
 const blankToNull = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -46,4 +48,24 @@ export async function saveProfile(form: FormData) {
   const { error } = await db().from("settings").update({ business_profile: parsed.data, updated_at: new Date().toISOString() }).eq("id", true);
   if (error) done("profile", "Couldn't save the profile.");
   done("profile");
+}
+
+/** The owner sets or changes their sign-in password. The value never leaves this request. */
+export async function setPassword(form: FormData) {
+  const me = await requireMember("owner", "/dashboard/settings");
+  const back = (code: string): never => redirect(`/dashboard/settings?pw=${code}#security`);
+  if (me.devBypass) back("failed");
+  const password = String(form.get("password") ?? "");
+  const problem = passwordProblem(password, String(form.get("confirm") ?? ""), me.email);
+  if (problem) back(problem);
+
+  const supabase = await supabaseServer();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    // Supabase can require a recent sign-in before changing a password.
+    const reauth = error.code === "reauthentication_needed" || /reauthenticat/i.test(error.message);
+    console.warn("settings: password update failed", error.status, error.code ?? "");
+    back(reauth ? "reauth" : error.code === "weak_password" ? "too_simple" : "failed");
+  }
+  back("set");
 }
