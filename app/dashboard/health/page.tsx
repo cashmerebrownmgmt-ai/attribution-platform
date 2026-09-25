@@ -1,4 +1,6 @@
+import { alertsFor } from "@/lib/alerts";
 import { loadPage } from "@/lib/dashboard/page";
+import { emailConfigured } from "@/lib/email";
 import { healthChecks, overallLevel } from "@/lib/metrics/health";
 import s from "../dashboard.module.css";
 import { Columns } from "../_components/charts/Columns";
@@ -15,6 +17,8 @@ export default async function HealthPage({ searchParams }: PageProps<"/dashboard
   const { mode, data } = await loadPage(searchParams);
   const checks = healthChecks(data);
   const overall = overallLevel(checks);
+  const alerts = alertsFor(data);
+  const emailOn = emailConfigured() && !!process.env.CRON_SECRET;
   const hours = data.health.eventsByHour;
   const hourLabel = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", timeZone: "UTC" });
 
@@ -31,6 +35,33 @@ export default async function HealthPage({ searchParams }: PageProps<"/dashboard
           </div>
         </div>
       </div>
+
+      <Card
+        title="Email alerts"
+        sub={
+          emailOn
+            ? "Checked every morning (9am Eastern). You're emailed when something breaks, and reminded once a day while it stays broken."
+            : "Not sending yet: add RESEND_API_KEY and CRON_SECRET in Vercel to get these by email. They still show here."
+        }
+      >
+        {alerts.length === 0 ? (
+          <div className={s.empty}>Nothing to alert on right now.</div>
+        ) : (
+          <div className={s.statusList}>
+            {alerts.map((a) => (
+              <div key={a.id} className={s.statusItem}>
+                <StatusIcon level={a.severity === "critical" ? "bad" : "warn"} />
+                <div>
+                  <div className={s.statusName}>{a.title}</div>
+                  <div className={s.statusDetail}>{a.detail}</div>
+                  {a.fix && <div className={s.statusDetail} style={{ marginTop: 4 }}><strong>What to do:</strong> {a.fix}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+      <div style={{ height: 12 }} />
 
       <div className={s.grid2}>
         <Card title="Checks">

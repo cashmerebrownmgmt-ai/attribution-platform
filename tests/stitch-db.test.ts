@@ -108,3 +108,12 @@ describe("page_stats", () => {
     ]);
   });
 });
+
+describe("alert_log", () => {
+  it("exists with RLS on and no policies", async () => {
+    const { rows } = await pg.query<{ relrowsecurity: boolean }>("select relrowsecurity from pg_class where relname = 'alert_log'");
+    expect(rows).toEqual([{ relrowsecurity: true }]);
+    const p = await pg.query("select 1 from pg_policies where tablename = 'alert_log'");
+    expect(p.rows).toHaveLength(0);
+  });
+});
