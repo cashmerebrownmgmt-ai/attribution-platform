@@ -32,12 +32,14 @@ const until = new Date().toISOString().slice(0, 10);
 const since = new Date(Date.now() - (days - 1) * 86_400_000).toISOString().slice(0, 10);
 const db = createClient(url ?? "http://unused", key ?? "unused", { auth: { persistSession: false } });
 
-console.log(`Syncing Meta ad account ${accountId} from ${since} to ${until}${dryRun ? " (dry run: nothing is written)" : ""}…`);
-try {
-  const summary = await syncMeta({ client: metaClient({ token, appSecret }), store: makeMetaStore(() => db) }, { accountId, since, until, dryRun });
+async function main() {
+  console.log(`Syncing Meta ad account ${accountId} from ${since} to ${until}${dryRun ? " (dry run: nothing is written)" : ""}…`);
+  const summary = await syncMeta({ client: metaClient({ token: token!, appSecret }), store: makeMetaStore(() => db) }, { accountId: accountId!, since, until, dryRun });
   console.log(summary);
-} catch (e) {
+}
+
+main().catch((e) => {
   if (e instanceof MetaApiError) console.error(`Meta API error${e.code !== null ? ` (code ${e.code})` : ""}: ${e.message}`);
   else console.error(e instanceof Error ? e.message : e);
   process.exit(1);
-}
+});

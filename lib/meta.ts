@@ -273,7 +273,8 @@ export function metaClient(opts: { token: string; appSecret?: string; fetch?: Me
       const err = body.error as { message?: string; code?: number } | undefined;
       if (res.status < 400 && !err) return body;
       const code = err?.code ?? null;
-      if (attempt < 3 && (res.status === 429 || res.status >= 500 || (code !== null && RETRYABLE.has(code)))) {
+      const tooMuchData = code === 1 && /reduce the amount of data/i.test(err?.message ?? "");
+      if (!tooMuchData && attempt < 3 && (res.status === 429 || res.status >= 500 || (code !== null && RETRYABLE.has(code)))) {
         await sleep(2000 * 4 ** attempt);
         continue;
       }
@@ -296,7 +297,21 @@ export function metaClient(opts: { token: string; appSecret?: string; fetch?: Me
       const out = [];
       let url: string | null = build(path, params);
       for (let page = 0; url && page < (opts.maxPages ?? 500); page++) {
-        const body = await call(url);
+        let body: Record<string, unknown>;
+        try {
+          body = await call(url);
+        } catch (e) {
+          // "Please reduce the amount of data you're asking for": retry the same page with half the page size.
+          const u: URL = new URL(url);
+          const limit = Number(u.searchParams.get("limit") ?? 25);
+          if (e instanceof MetaApiError && e.code === 1 && limit > 5) {
+            u.searchParams.set("limit", String(Math.max(5, Math.floor(limit / 2))));
+            url = u.toString();
+            page--;
+            continue;
+          }
+          throw e;
+        }
         const rows = z.array(z.unknown()).parse(body.data ?? []);
         for (const r of rows) out.push(schema.parse(r));
         const next = (body.paging as { next?: string } | undefined)?.next ?? null;
@@ -339,6 +354,17 @@ export function isoDay(s: string): string {
   return s;
 }
 
+/** Split [since, until] into consecutive windows of at most `days` days. */
+export function dateWindows(since: string, until: string, days: number): { since: string; until: string }[] {
+  const out: { since: string; until: string }[] = [];
+  const end = Date.parse(`${until}T00:00:00Z`);
+  for (let t = Date.parse(`${since}T00:00:00Z`); t <= end; t += days * 86_400_000) {
+    const stop = Math.min(end, t + (days - 1) * 86_400_000);
+    out.push({ since: new Date(t).toISOString().slice(0, 10), until: new Date(stop).toISOString().slice(0, 10) });
+  }
+  return out;
+}
+
 export async function syncMeta(deps: { client: MetaClient; store: MetaStore; now?: () => Date }, opts: { accountId: string; since: string; until: string; dryRun?: boolean }): Promise<SyncSummary> {
   const now = (deps.now ?? (() => new Date()))().toISOString();
   const act = `act_${bareAccountId(opts.accountId)}`;
@@ -349,14 +375,13 @@ export async function syncMeta(deps: { client: MetaClient; store: MetaStore; now
   const account = mapAccount(await client.getOne(act, { fields: "id,account_id,name,currency,timezone_name" }, accountSchema));
   const campaigns = (await client.getAll(`${act}/campaigns`, { fields: "id,name,effective_status,status,objective,daily_budget", filtering: ALL_STATUSES, limit: "200" }, campaignSchema)).map((c) => mapCampaign(c, account.id, now));
   const adSets = (await client.getAll(`${act}/adsets`, { fields: "id,name,campaign_id,effective_status,status,daily_budget", filtering: ALL_STATUSES, limit: "200" }, adSetSchema)).map((s) => mapAdSet(s, now));
-  const ads = (await client.getAll(`${act}/ads`, { fields: AD_FIELDS, filtering: ALL_STATUSES, limit: "100" }, adSchema)).map((a) => mapAd(a, now));
-  const insights = (
-    await client.getAll(
-      `${act}/insights`,
-      { level: "ad", time_increment: "1", time_range: JSON.stringify({ since, until }), fields: INSIGHT_FIELDS, limit: "500" },
-      insightSchema,
-    )
-  ).map((i) => mapInsight(i, now));
+  const ads = (await client.getAll(`${act}/ads`, { fields: AD_FIELDS, filtering: ALL_STATUSES, limit: "25" }, adSchema)).map((a) => mapAd(a, now));
+  // Daily ad-level rows for a long range are too much for one request, so ask a week at a time.
+  const insights: InsightRow[] = [];
+  for (const w of dateWindows(since, until, 7)) {
+    const rows = await client.getAll(`${act}/insights`, { level: "ad", time_increment: "1", time_range: JSON.stringify(w), fields: INSIGHT_FIELDS, limit: "100" }, insightSchema);
+    for (const r of rows) insights.push(mapInsight(r, now));
+  }
 
   // Keep the hierarchy consistent: children whose parent wasn't returned are skipped, not guessed.
   const campaignIds = new Set(campaigns.map((c) => c.id));

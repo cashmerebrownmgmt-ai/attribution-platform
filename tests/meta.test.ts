@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { ctaLabel, landingUrl, mapAd, mapCampaign, mapInsight, mapStatus, MetaApiError, metaClient, purchases, syncMeta, type MetaFetch, type MetaStore } from "@/lib/meta";
+import { ctaLabel, dateWindows, landingUrl, mapAd, mapCampaign, mapInsight, mapStatus, MetaApiError, metaClient, purchases, syncMeta, type MetaFetch, type MetaStore } from "@/lib/meta";
 
 const NOW = "2026-09-25T12:00:00.000Z";
 
@@ -108,6 +108,16 @@ describe("metaClient", () => {
     expect(calls.every((c) => !c.url.includes("TOKEN") && c.headers.Authorization === "Bearer TOKEN" && c.url.includes("appsecret_proof="))).toBe(true);
   });
 
+  it("halves the page size when Meta asks for less data", async () => {
+    const { f, calls } = fakeFetch({
+      "act_1/ads": [{ status: 500, body: { error: { message: "Please reduce the amount of data you're asking for, then retry your request", code: 1 } } }, { body: { data: [{ id: "a" }] } }],
+    });
+    const rows = await metaClient({ token: "T", fetch: f, sleep: async () => {} }).getAll("act_1/ads", { limit: "100" }, row);
+    expect(rows).toHaveLength(1);
+    expect(calls).toHaveLength(2); // no pointless retries of the oversized request
+    expect(new URL(calls.at(-1)!.url).searchParams.get("limit")).toBe("50");
+  });
+
   it("does not follow paging links to other hosts", async () => {
     const { f, calls } = fakeFetch({ "act_1/ads": [{ body: { data: [{ id: "a" }], paging: { next: "https://evil.example/steal" } } }] });
     await metaClient({ token: "T", fetch: f }).getAll("act_1/ads", {}, row);
@@ -166,5 +176,16 @@ describe("syncMeta", () => {
     await syncMeta({ client, store }, { accountId: "42", since: "2026-09-23", until: "2026-09-24", dryRun: true });
     expect(written).toEqual({});
     await expect(syncMeta({ client, store }, { accountId: "42", since: "yesterday", until: "2026-09-24" })).rejects.toThrow("YYYY-MM-DD");
+  });
+});
+
+describe("dateWindows", () => {
+  it("splits a range into week-long windows", () => {
+    expect(dateWindows("2026-09-01", "2026-09-16", 7)).toEqual([
+      { since: "2026-09-01", until: "2026-09-07" },
+      { since: "2026-09-08", until: "2026-09-14" },
+      { since: "2026-09-15", until: "2026-09-16" },
+    ]);
+    expect(dateWindows("2026-09-01", "2026-09-01", 7)).toEqual([{ since: "2026-09-01", until: "2026-09-01" }]);
   });
 });
