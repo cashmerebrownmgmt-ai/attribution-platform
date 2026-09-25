@@ -23,6 +23,7 @@ const incomingEvent = z.object({
   referrer: text(2048).nullish(),
   checkout_token: text(128).nullish(),
   shopify_order_id: text(64).nullish(),
+  title: text(300).nullish(),
 });
 
 const batch = z.object({ events: z.array(incomingEvent).min(1).max(MAX_BATCH) });
@@ -49,6 +50,11 @@ export type EventRow = SourceFields & {
   user_agent: string | null;
   ip_hash: string | null;
   is_touchpoint: boolean;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  device: Device | null;
+  title: string | null;
 };
 
 export type CollectConfig = {
@@ -75,6 +81,40 @@ export function parseAllowedOrigins(value: string | undefined): string[] {
 export function hashIp(ip: string | null, salt: string): string | null {
   if (!ip) return null;
   return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
+}
+
+export type Device = "mobile" | "tablet" | "desktop";
+
+/** Rough device class from the user agent. */
+export function deviceFromUA(ua: string | null): Device | null {
+  if (!ua) return null;
+  if (/iPad|Tablet|Nexus (7|9|10)|SM-T|Kindle|Silk|PlayBook/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua))) return "tablet";
+  if (/Mobi|iPhone|iPod|Android.*Mobile|Windows Phone|BlackBerry|Opera Mini/i.test(ua)) return "mobile";
+  return "desktop";
+}
+
+/**
+ * Coarse location from Vercel's edge geolocation headers (city is URL-encoded). Only
+ * city/region/country are kept, never coordinates or the IP.
+ */
+export function geoFromHeaders(h: Headers): { country: string | null; region: string | null; city: string | null } {
+  const clean = (v: string | null, max: number) => {
+    if (!v) return null;
+    let s = v;
+    try {
+      s = decodeURIComponent(v);
+    } catch {
+      // keep as-is
+    }
+    s = s.trim().slice(0, max);
+    return s && s !== "-" ? s : null;
+  };
+  const country = clean(h.get("x-vercel-ip-country"), 8)?.toUpperCase() ?? null;
+  return {
+    country: country && /^[A-Z]{2}$/.test(country) ? country : null,
+    region: clean(h.get("x-vercel-ip-country-region"), 10),
+    city: clean(h.get("x-vercel-ip-city"), 80),
+  };
 }
 
 function clientIp(req: Request): string | null {
@@ -107,7 +147,11 @@ function corsHeaders(origin: string | null): HeadersInit {
 export function toRow(e: IncomingEvent, req: Request, deps: CollectDeps, now: Date): EventRow {
   const storeHosts = deps.config.allowedOrigins.map((o) => o.replace(/^https?:\/\//, ""));
   const source = parseSource(e.url, e.referrer ?? null, storeHosts);
+  const ua = req.headers.get("user-agent");
   return {
+    ...geoFromHeaders(req.headers),
+    device: deviceFromUA(ua),
+    title: e.title?.trim() || null,
     ...source,
     id: e.id,
     visitor_id: e.visitor_id,

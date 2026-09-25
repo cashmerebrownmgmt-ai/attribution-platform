@@ -95,6 +95,7 @@ export function track(w: TrackerWindow, endpoint: string): void {
     occurred_at: now,
     url,
     referrer: w.document.referrer || null,
+    title: w.document.title ? w.document.title.slice(0, 300) : null,
   });
 
   void syncCart(w, visitorId).catch(() => {});

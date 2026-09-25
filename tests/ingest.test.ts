@@ -30,6 +30,11 @@ function row(id: number, overrides: Partial<EventRow> = {}): EventRow {
     user_agent: null,
     ip_hash: null,
     is_touchpoint: false,
+    country: null,
+    region: null,
+    city: null,
+    device: null,
+    title: null,
     ...overrides,
   };
 }

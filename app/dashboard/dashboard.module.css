@@ -500,3 +500,52 @@
 @media (prefers-reduced-motion: reduce) {
   .drawer, .hoverCard { animation: none; }
 }
+
+/* ── Live ───────────────────────────────────────────────────────────────── */
+
+.liveBadge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); padding: 3px 10px; border-radius: 999px; border: 1px solid var(--ring); background: var(--surface); }
+.liveDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 0 rgba(12, 163, 12, 0.6); animation: pulse 1.8s infinite; flex: none; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(12, 163, 12, 0.55); } 70% { box-shadow: 0 0 0 7px rgba(12, 163, 12, 0); } 100% { box-shadow: 0 0 0 0 rgba(12, 163, 12, 0); } }
+.liveHero { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 12px; }
+.liveHeroUnit { font-size: 16px; font-weight: 500; color: var(--ink-2); letter-spacing: 0; }
+.liveHeroStats { display: flex; gap: 20px; }
+.liveHeroStats div { display: grid; }
+.liveHeroStats b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.liveHeroStats span { color: var(--muted); font-size: 11.5px; }
+
+.liveTop { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.liveTop li { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(40px, 1fr) auto; gap: 8px; align-items: center; font-size: 12.5px; }
+.liveTopLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.liveTopBar { height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.liveTopBar span { display: block; height: 100%; background: var(--s1); border-radius: 4px; transition: width 0.4s; }
+.liveTop b { font-variant-numeric: tabular-nums; min-width: 18px; text-align: right; }
+
+.liveList { display: grid; margin: 0 -16px -14px; border-top: 1px solid var(--ring); }
+.liveRow { border-bottom: 1px solid var(--grid); }
+.liveRow:last-child { border-bottom: 0; }
+.liveRow summary {
+  list-style: none; cursor: pointer; display: grid; gap: 4px 14px; align-items: center; padding: 9px 16px;
+  grid-template-columns: minmax(180px, 1.3fr) minmax(120px, 1fr) minmax(160px, 1.4fr) auto;
+}
+.liveRow summary::-webkit-details-marker { display: none; }
+.liveRow summary:hover { background: var(--surface-2); }
+.liveRow[open] summary { background: var(--surface-2); }
+.liveRowIdle { opacity: 0.7; }
+.liveWho { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.liveFlag { font-size: 20px; line-height: 1; }
+.liveLoc { display: block; font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.liveMeta { display: block; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.liveSource, .liveNow { min-width: 0; display: grid; gap: 2px; justify-items: start; }
+.chip { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 1px 8px; border-radius: 999px; background: var(--accent-wash); color: var(--ink); font-size: 11.5px; font-weight: 600; }
+.liveWhen { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); white-space: nowrap; justify-self: end; }
+.liveTrail { padding: 4px 16px 14px 46px; }
+.liveTrail ol { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; font-size: 12.5px; }
+.liveTrail li { display: flex; gap: 10px; flex-wrap: wrap; }
+.liveTrail a { color: var(--accent); text-decoration: none; }
+
+@media (max-width: 860px) {
+  .liveRow summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .liveSource, .liveNow { grid-column: 1 / -1; }
+  .liveTrail { padding-left: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .liveDot { animation: none; } }
