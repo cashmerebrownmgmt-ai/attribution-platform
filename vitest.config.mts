@@ -8,8 +8,9 @@ export default defineConfig({
   test: {
     include: ["tests/**/*.test.ts"],
     environment: "node",
-    // PGlite (in-process Postgres) takes several seconds to start when test files run in parallel.
-    hookTimeout: 60_000,
+    // PGlite (in-process Postgres) replays every migration per test file; with several database test
+    // files running in parallel on a busy machine that can exceed a minute.
+    hookTimeout: 180_000,
     testTimeout: 30_000,
   },
 });
