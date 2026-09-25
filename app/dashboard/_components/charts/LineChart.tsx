@@ -5,7 +5,7 @@ import s from "../../dashboard.module.css";
 import { fmt, type ValueKind } from "./fmt";
 import { useWidth } from "./useWidth";
 
-export type Series = { name: string; color: string; values: (number | null)[]; area?: boolean };
+export type Series = { name: string; color: string; values: (number | null)[]; area?: boolean; dashed?: boolean };
 
 type Props = {
   dates: string[];
@@ -18,12 +18,14 @@ type Props = {
   /** "date" treats x values as YYYY-MM-DD; "raw" shows them as given. */
   xFormat?: "date" | "raw";
   label: string;
+  /** Shade these x values (e.g. the selected days when the chart shows extra context). */
+  highlight?: { from: string; to: string };
 };
 
 const PAD = { top: 12, right: 12, bottom: 26, left: 52 };
 
 /** Line/area time series with crosshair + tooltip, one shared y-axis. */
-export function LineChart({ dates, series, kind, currency = "USD", height = 200, reference, xFormat = "date", label }: Props) {
+export function LineChart({ dates, series, kind, currency = "USD", height = 200, reference, xFormat = "date", label, highlight }: Props) {
   const xShort = (d: string) => (xFormat === "date" ? shortDate(d) : d);
   const xLong = (d: string) => (xFormat === "date" ? longDate(d) : d);
   const [ref, width] = useWidth<HTMLDivElement>();
@@ -72,6 +74,11 @@ export function LineChart({ dates, series, kind, currency = "USD", height = 200,
     else if (e.key === "Escape") setHover(null);
   };
 
+  // A value with no neighbour draws no line segment, so mark lone points with a dot.
+  const lone = series.map((se) => se.values.map((v, i) => v !== null && (se.values[i - 1] ?? null) === null && (se.values[i + 1] ?? null) === null));
+  const hi = highlight ? dates.map((d, i) => (d >= highlight.from && d <= highlight.to ? i : -1)).filter((i) => i >= 0) : [];
+  const step = dates.length > 1 ? (width - PAD.left - PAD.right) / (dates.length - 1) : width - PAD.left - PAD.right;
+
   const labelEvery = Math.max(1, Math.ceil(dates.length / Math.max(2, Math.floor((width - 80) / 90))));
 
   return (
@@ -97,6 +104,9 @@ export function LineChart({ dates, series, kind, currency = "USD", height = 200,
         onKeyDown={onKey}
         onBlur={() => setHover(null)}
       >
+        {hi.length > 0 && hi.length < dates.length && (
+          <rect x={Math.max(PAD.left, x(hi[0]) - step / 2)} width={Math.min(width - PAD.right, x(hi[hi.length - 1]) + step / 2) - Math.max(PAD.left, x(hi[0]) - step / 2)} y={PAD.top} height={height - PAD.top - PAD.bottom} fill="var(--s1)" opacity={0.08} />
+        )}
         {ticks.map((t) => (
           <g key={t}>
             <line className={t === 0 ? s.baseline : s.gridline} x1={PAD.left} x2={width - PAD.right} y1={y(t)} y2={y(t)} />
@@ -127,12 +137,16 @@ export function LineChart({ dates, series, kind, currency = "USD", height = 200,
           <path
             key={`${series[i].name}-${dates[0]}-${dates.length}`}
             d={p.d}
-            className={`${s.line} ${s.drawIn}`}
+            className={`${s.line} ${series[i].dashed ? s.fadeIn : s.drawIn}`}
             stroke={series[i].color}
-            pathLength={1}
+            strokeDasharray={series[i].dashed ? "5 4" : undefined}
+            pathLength={series[i].dashed ? undefined : 1}
             style={{ ["--len" as string]: 1, animationDelay: `${i * 0.12}s` }}
           />
         ))}
+        {series.map((se, si) =>
+          se.values.map((v, i) => (lone[si][i] && v !== null ? <circle key={`${se.name}-dot-${i}`} cx={x(i)} cy={y(v)} r={4} fill={se.color} /> : null)),
+        )}
         {hover !== null && (
           <g>
             <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={height - PAD.bottom} stroke="var(--axis)" strokeWidth={1} />

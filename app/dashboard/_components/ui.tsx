@@ -112,6 +112,7 @@ export function Kpi({
   neutral = false,
   trend,
   target,
+  vs = "vs prev.",
 }: {
   label: string;
   value: string;
@@ -122,6 +123,8 @@ export function Kpi({
   neutral?: boolean;
   trend?: (number | null)[];
   target?: string;
+  /** Comparison label, e.g. "vs this time yesterday". */
+  vs?: string;
 }) {
   const d = delta(current, previous);
   const good = neutral || d === null || Math.abs(d) < 0.005 ? null : d > 0 === upIsGood;
@@ -134,7 +137,7 @@ export function Kpi({
           {d === null ? "—" : `${d > 0 ? "▲" : d < 0 ? "▼" : ""} ${signedPct(d)}`}
           <span className={s.muted} style={{ fontWeight: 400 }}>
             {" "}
-            vs prev.
+            {vs}
           </span>
         </span>
         {trend && <Sparkline values={trend} />}

@@ -229,7 +229,7 @@
 .kpiLabel { color: var(--muted); font-size: 11.5px; font-weight: 500; }
 .kpiValue { font-size: 20px; font-weight: 650; margin-top: 1px; letter-spacing: -0.015em; }
 .kpiFoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; margin-top: 6px; min-height: 22px; }
-.delta { font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.delta { font-size: 11px; font-weight: 600; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 3px; white-space: nowrap; max-width: 100%; }
 .deltaGood { color: var(--good-text); }
 .deltaBad { color: var(--bad-text); }
 .deltaFlat { color: var(--muted); }
@@ -343,12 +343,14 @@
 .lightbox { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; }
 .lightboxBackdrop { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.62); backdrop-filter: blur(3px); animation: fade 0.15s ease-out; }
 .lightboxPanel {
-  position: relative; width: min(1040px, 100%); max-height: calc(100vh - 40px); overflow: auto;
+  position: relative; width: min(1040px, 100%); max-height: calc(100vh - 40px); max-height: calc(100dvh - 40px); overflow: auto; overscroll-behavior: contain;
   background: var(--surface); border: 1px solid var(--ring); border-radius: 14px; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   animation: pop 0.18s ease-out;
 }
 @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
-.lightboxBar { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--ring); }
+.lightboxBar { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--ring); }
+.barButtons { display: flex; gap: 6px; flex-wrap: nowrap; }
+.closeButton { min-width: 44px; min-height: 40px; justify-content: center; font-weight: 600; }
 .lightboxBody { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; padding: 18px; }
 .lightboxMedia { background: var(--surface-2); border-radius: 10px; padding: 16px; align-self: start; }
 .lightboxInfo { min-width: 0; }
@@ -357,9 +359,19 @@
 .statGrid b { display: block; font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
 .statGrid span { color: var(--muted); }
 @media (max-width: 760px) {
-  .lightbox { padding: 0; }
-  .lightboxPanel { max-height: 100vh; border-radius: 0; }
-  .lightboxBody { grid-template-columns: minmax(0, 1fr); }
+  /* Full screen from the top: centering a panel taller than the visible screen hid its top bar (and Close). */
+  .lightbox { padding: 0; place-items: stretch; align-items: start; }
+  .lightboxPanel { width: 100%; height: 100vh; height: 100dvh; max-height: none; border: 0; border-radius: 0; }
+  .lightboxBar { padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) 10px max(12px, env(safe-area-inset-left)); }
+  .lightboxBody { grid-template-columns: minmax(0, 1fr); padding: 12px 12px max(24px, env(safe-area-inset-bottom)); }
+  .lightboxMedia { padding: 10px; }
+  .drawer { width: 100%; border-left: 0; }
+  .drawer .lightboxBar { flex-wrap: wrap; }
+  .drawer .lightboxBar > span { margin-left: auto; }
+  .drawerBody { padding: 14px 12px max(32px, env(safe-area-inset-bottom)); }
+}
+@media (max-width: 420px) {
+  .navText { display: none; }
 }
 
 /* ── Health ─────────────────────────────────────────────────────────────── */
@@ -464,7 +476,7 @@
 
 .drawerWrap { position: fixed; inset: 0; z-index: 50; }
 .drawer {
-  position: absolute; top: 0; right: 0; bottom: 0; width: min(720px, 100%); overflow: auto;
+  position: absolute; top: 0; right: 0; bottom: 0; width: min(720px, 100%); overflow: auto; overscroll-behavior: contain;
   background: var(--surface); border-left: 1px solid var(--ring); box-shadow: -20px 0 50px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.2s ease-out;
 }
@@ -532,6 +544,8 @@
 .liveRow[open] summary { background: var(--surface-2); }
 .liveRowIdle { opacity: 0.7; }
 .liveWho { display: flex; gap: 10px; align-items: center; min-width: 0; }
+/* Items in these columns size to their text; cap them so long titles truncate instead of widening the page. */
+.liveSource > *, .liveNow > * { max-width: 100%; }
 .liveFlag { font-size: 20px; line-height: 1; }
 .liveLoc { display: block; font-weight: 600; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .liveMeta { display: block; font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -547,6 +561,8 @@
   .liveRow summary { grid-template-columns: minmax(0, 1fr) auto; }
   .liveSource, .liveNow { grid-column: 1 / -1; }
   .liveTrail { padding-left: 16px; }
+  .liveTrail .liveMeta { white-space: normal; }
+  .liveTrail li, .liveTrail .liveMeta { overflow-wrap: anywhere; min-width: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .liveDot { animation: none; } }
 

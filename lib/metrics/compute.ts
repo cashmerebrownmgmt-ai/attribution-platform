@@ -2,7 +2,7 @@
  * Pure dashboard calculations. Every page is a function of (DashboardData, filters).
  * Definitions: docs/phase-3-spec.md § Metrics.
  */
-import { storeDay } from "../tz";
+import { storeDay, storeHours } from "../tz";
 import type { Model } from "../attribution";
 import type { Channel } from "../channel";
 import type { Ad, DashboardData, Insight, OrderFact, Platform } from "./types";
@@ -131,10 +131,53 @@ export function kpis(data: DashboardData, f: Pick<Filters, "model" | "platform">
   };
 }
 
-export type KpiComparison = { current: Kpis; previous: Kpis };
+/** `sameTime`: previous is yesterday up to this time of day (for Today), not a whole period. */
+export type KpiComparison = { current: Kpis; previous: Kpis; sameTime?: boolean };
 
-export function compareKpis(data: DashboardData, f: Filters): KpiComparison {
-  return { current: kpis(data, f, f.range), previous: kpis(data, f, previousRange(f.range)) };
+/**
+ * KPIs for the range and the period before it. When the range is just today (and `now` is given),
+ * today so far is compared with yesterday up to the same time, not all of yesterday: orders placed
+ * after this time yesterday are left out, and yesterday's ad spend is scaled to the same share of
+ * the day (platforms only report spend per day).
+ */
+export function compareKpis(data: DashboardData, f: Filters, opts: { now?: number } = {}): KpiComparison {
+  const current = kpis(data, f, f.range);
+  const today = opts.now !== undefined ? storeDay(opts.now) : null;
+  if (!today || f.range.from !== today || f.range.to !== today) return { current, previous: kpis(data, f, previousRange(f.range)), sameTime: false };
+
+  const yesterday = addDays(today, -1);
+  const cutoff = opts.now! - DAY_MS;
+  const share = Math.min(1, Math.max(0, storeHours(opts.now!) / 24));
+  const partial: DashboardData = {
+    ...data,
+    orders: data.orders.filter((o) => dayOf(o.createdAt) !== yesterday || Date.parse(o.createdAt) <= cutoff),
+    insights: data.insights.map((i) => (i.date === yesterday ? { ...i, spend: i.spend * share, impressions: Math.round(i.impressions * share), clicks: Math.round(i.clicks * share), platformConversions: i.platformConversions === null ? null : i.platformConversions * share, platformRevenue: i.platformRevenue === null ? null : i.platformRevenue * share } : i)),
+  };
+  return { current, previous: kpis(partial, f, { from: yesterday, to: yesterday }), sameTime: true };
+}
+
+/** Charts need a few days of context: short ranges are shown as the last `min` days ending on the range's last day. */
+export function chartRange(r: DateRange, min = 14): DateRange {
+  return daysIn(r).length >= min ? r : { from: addDays(r.to, -(min - 1)), to: r.to };
+}
+
+export type HourPoint = { hour: number; revenue: number | null; previous: number };
+
+/**
+ * Running revenue through a day, hour by hour (store time), next to the day before. Hours that
+ * haven't happened yet are null for the current day.
+ */
+export function hourlyRevenue(data: DashboardData, f: Pick<Filters, "model" | "platform">, day: string, now?: number): HourPoint[] {
+  const cum = (d: string) => {
+    const by = new Array(24).fill(0) as number[];
+    for (const o of creditedTo(ordersIn(data, { from: d, to: d }), f.model, f.platform)) by[Math.min(23, Math.floor(storeHours(o.createdAt)))] += o.revenue;
+    for (let h = 1; h < 24; h++) by[h] += by[h - 1];
+    return by.map((v) => Math.round(v * 100) / 100);
+  };
+  const today = cum(day);
+  const before = cum(addDays(day, -1));
+  const lastHour = now !== undefined && storeDay(now) === day ? Math.floor(storeHours(now)) : 23;
+  return today.map((v, h) => ({ hour: h, revenue: h <= lastHour ? v : null, previous: before[h] }));
 }
 
 // ─── Time series ──────────────────────────────────────────────────────────────

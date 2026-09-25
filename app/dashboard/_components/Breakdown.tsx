@@ -5,6 +5,7 @@ import { money, num, pct, roas, signedPct } from "@/lib/dashboard/format";
 import { factors, FACTOR_LABELS, type Breakdown, type Effect, type Finding, type ResponseModel } from "@/lib/metrics/drivers";
 import { VERDICT_LABELS } from "@/lib/metrics/signals";
 import s from "../dashboard.module.css";
+import { ScrollLock } from "./ScrollLock";
 import { AdPreview } from "./AdPreview";
 import { PLATFORM_COLORS } from "./ui";
 
@@ -103,6 +104,7 @@ export function BreakdownDrawer({
 
   return (
     <div className={s.drawerWrap} role="dialog" aria-modal="true" aria-label={`${e.name} breakdown`}>
+      <ScrollLock />
       <Link href={closeHref} className={s.lightboxBackdrop} scroll={false} aria-label="Close" tabIndex={-1} />
       <aside className={s.drawer}>
         <div className={s.lightboxBar}>
@@ -115,7 +117,7 @@ export function BreakdownDrawer({
           </div>
           <span style={{ display: "flex", gap: 6, flex: "none" }}>
             {actions}
-            <Link className={s.button} href={closeHref} scroll={false} autoFocus>
+            <Link className={`${s.button} ${s.closeButton}`} href={closeHref} scroll={false} autoFocus aria-label="Close">
               Close ✕
             </Link>
           </span>

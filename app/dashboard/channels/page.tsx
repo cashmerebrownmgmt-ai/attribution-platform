@@ -2,7 +2,7 @@ import { CHANNEL_LABELS } from "@/lib/debug";
 import { PLATFORM_LABELS } from "@/lib/dashboard/filters";
 import { pct, roas } from "@/lib/dashboard/format";
 import { loadPage } from "@/lib/dashboard/page";
-import { byChannel, daysIn, insightsIn, performance } from "@/lib/metrics/compute";
+import { byChannel, chartRange, daysIn, insightsIn, performance } from "@/lib/metrics/compute";
 import { AD_PLATFORMS } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
 import { BarList } from "../_components/charts/BarList";
@@ -18,14 +18,16 @@ export default async function ChannelsPage({ searchParams }: PageProps<"/dashboa
   const t = data.settings;
   const channels = byChannel(data, f);
   const platforms = performance(data, f, "platform");
-  const dates = daysIn(f.range);
+  const chartR = chartRange(f.range);
+  const extended = chartR.from !== f.range.from;
+  const dates = daysIn(chartR);
 
   const spendByPlatform = new Map(AD_PLATFORMS.map((p) => [p, new Map(dates.map((d) => [d, 0]))]));
-  for (const i of insightsIn(data, f.range, f.platform)) {
+  for (const i of insightsIn(data, chartR, f.platform)) {
     const m = spendByPlatform.get(i.platform);
     if (m?.has(i.date)) m.set(i.date, (m.get(i.date) ?? 0) + i.spend);
   }
-  const activePlatforms = AD_PLATFORMS.filter((p) => platforms.some((r) => r.platform === p));
+  const activePlatforms = AD_PLATFORMS.filter((p) => [...(spendByPlatform.get(p)?.values() ?? [])].some((v) => v > 0));
 
   return (
     <>
@@ -41,13 +43,14 @@ export default async function ChannelsPage({ searchParams }: PageProps<"/dashboa
             items={channels.map((c) => ({ key: c.channel, label: CHANNEL_LABELS[c.channel] ?? c.channel, value: c.revenue, note: `${pct(c.share, 0)} · ${c.orders} orders` }))}
           />
         </Card>
-        <Card title="Daily spend by platform" sub="Same scale for all platforms">
+        <Card title="Daily spend by platform" sub={extended ? "Last 14 days · your selected range is shaded" : "Same scale for all platforms"}>
           {activePlatforms.length === 0 ? (
             <div className={s.empty}>No ad spend in this range.</div>
           ) : (
             <LineChart
               label="Daily ad spend by platform"
               dates={dates}
+              highlight={extended ? f.range : undefined}
               kind="money"
               currency={cur}
               series={activePlatforms.map((p) => ({ name: PLATFORM_LABELS[p], color: PLATFORM_COLORS[p], values: dates.map((d) => spendByPlatform.get(p)?.get(d) ?? 0) }))}

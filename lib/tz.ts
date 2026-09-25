@@ -25,3 +25,14 @@ export function storeDay(at: string | number | Date): string {
 
 /** Today's date in the store's time zone. */
 export const storeToday = () => storeDay(Date.now());
+
+const clock = new Intl.DateTimeFormat("en-US", { timeZone: STORE_TZ, hour: "numeric", minute: "numeric", hourCycle: "h23" });
+
+/** Hours since midnight in the store's time zone, e.g. 13.5 for 1:30pm. */
+export function storeHours(at: string | number | Date): number {
+  const d = new Date(typeof at === "string" || typeof at === "number" ? at : at.getTime());
+  const parts = clock.formatToParts(d);
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
+  return h + m / 60;
+}

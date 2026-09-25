@@ -49,7 +49,15 @@ export function HoverPreview({ children, content }: { children: ReactNode; conte
   }, [open]);
 
   return (
-    <span ref={trigger} className={s.hoverTrigger} onPointerEnter={show} onPointerLeave={hide} onFocus={show} onBlur={hide}>
+    <span
+      ref={trigger}
+      className={s.hoverTrigger}
+      // Touch screens have no hover: a tap should just open the item, not leave a card on screen.
+      onPointerEnter={(e) => e.pointerType === "mouse" && show()}
+      onPointerLeave={(e) => e.pointerType === "mouse" && hide()}
+      onFocus={(e) => e.target.matches(":focus-visible") && show()}
+      onBlur={hide}
+    >
       {children}
       {open && (
         <div

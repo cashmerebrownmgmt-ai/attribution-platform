@@ -57,3 +57,46 @@ describe("Today's revenue", () => {
     expect(k.orders).toBe(2);
   });
 });
+
+describe("charts and today's comparison", async () => {
+  const { chartRange, compareKpis, hourlyRevenue } = await import("@/lib/metrics/compute");
+  const direct: Touch = { channel: "direct", platform: null, campaignId: null, adId: null };
+  let n = 100;
+  const order = (createdAt: string, revenue: number): OrderFact => ({
+    id: `o${++n}`, name: `#${n}`, createdAt, revenue, isNew: true, cancelled: false, stitchMethod: "none",
+    touches: { first_touch: direct, last_touch: direct, last_non_direct: direct }, path: [], daysToPurchase: null, customerKey: null, items: [],
+  });
+  const f = { model: "last_non_direct" as const, platform: "all" as const };
+
+  it("gives short ranges two weeks of chart context", () => {
+    expect(chartRange({ from: "2026-09-25", to: "2026-09-25" })).toEqual({ from: "2026-09-12", to: "2026-09-25" });
+    expect(chartRange({ from: "2026-08-27", to: "2026-09-25" })).toEqual({ from: "2026-08-27", to: "2026-09-25" });
+  });
+
+  it("compares today with yesterday up to the same time", () => {
+    const now = Date.parse("2026-09-25T16:00:00Z"); // noon Eastern
+    const data = {
+      orders: [order("2026-09-25T13:00:00Z", 30), order("2026-09-24T13:00:00Z", 20), order("2026-09-24T22:00:00Z", 500)],
+      insights: [{ platform: "meta", adId: "a", date: "2026-09-24", spend: 100, impressions: 1000, clicks: 10, platformConversions: 2, platformRevenue: 80 }],
+    } as unknown as DashboardData;
+    const today = { from: "2026-09-25", to: "2026-09-25" };
+    const c = compareKpis(data, { ...f, range: today }, { now });
+    expect(c.sameTime).toBe(true);
+    expect(c.previous.revenue).toBe(20); // the 6pm order yesterday hasn't "happened" yet at noon
+    expect(c.previous.spend).toBeCloseTo(50); // half the day
+    const plain = compareKpis(data, { ...f, range: { from: "2026-09-24", to: "2026-09-24" } }, { now });
+    expect(plain.sameTime).toBe(false);
+    expect(plain.current.revenue).toBe(520);
+  });
+
+  it("builds running revenue by Eastern hour, stopping at the current hour", () => {
+    const data = { orders: [order("2026-09-25T13:10:00Z", 30), order("2026-09-25T15:30:00Z", 10), order("2026-09-24T05:00:00Z", 7)], insights: [] } as unknown as DashboardData;
+    const h = hourlyRevenue(data, f, "2026-09-25", Date.parse("2026-09-25T16:00:00Z"));
+    expect(h[8].revenue).toBe(0); // 8am
+    expect(h[9].revenue).toBe(30); // 9:10am
+    expect(h[11].revenue).toBe(40); // 11:30am
+    expect(h[12].revenue).toBe(40); // noon (now)
+    expect(h[13].revenue).toBeNull(); // the future
+    expect(h[1].previous).toBe(7); // 1am yesterday
+  });
+});

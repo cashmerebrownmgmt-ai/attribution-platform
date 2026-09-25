@@ -6,6 +6,7 @@ import { ctrDecay, dayOf, fatigue, performance, type PerfRow } from "@/lib/metri
 import { adSignal, VERDICT_LABELS, type Signal, type Verdict } from "@/lib/metrics/signals";
 import type { Ad } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
+import { ScrollLock } from "../_components/ScrollLock";
 import { AdPreview } from "../_components/AdPreview";
 import { LineChart } from "../_components/charts/LineChart";
 import { LightboxKeys } from "../_components/LightboxKeys";
@@ -121,16 +122,25 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
             prev={selIdx > 0 ? hrefFor(items[selIdx - 1].row.key) : null}
             next={selIdx < items.length - 1 ? hrefFor(items[selIdx + 1].row.key) : null}
           />
+          <ScrollLock />
           <Link href={hrefFor(null)} className={s.lightboxBackdrop} scroll={false} aria-label="Close" tabIndex={-1} />
           <div className={s.lightboxPanel}>
             <div className={s.lightboxBar}>
               <span className={s.muted}>
                 {selIdx + 1} of {items.length}
               </span>
-              <span style={{ display: "flex", gap: 6 }}>
-                {selIdx > 0 && <Link className={s.button} href={hrefFor(items[selIdx - 1].row.key)} scroll={false}>← Previous</Link>}
-                {selIdx < items.length - 1 && <Link className={s.button} href={hrefFor(items[selIdx + 1].row.key)} scroll={false}>Next →</Link>}
-                <Link className={s.button} href={hrefFor(null)} scroll={false} autoFocus>
+              <span className={s.barButtons}>
+                {selIdx > 0 && (
+                  <Link className={s.button} href={hrefFor(items[selIdx - 1].row.key)} scroll={false} aria-label="Previous ad">
+                    ←<span className={s.navText}> Previous</span>
+                  </Link>
+                )}
+                {selIdx < items.length - 1 && (
+                  <Link className={s.button} href={hrefFor(items[selIdx + 1].row.key)} scroll={false} aria-label="Next ad">
+                    <span className={s.navText}>Next </span>→
+                  </Link>
+                )}
+                <Link className={`${s.button} ${s.closeButton}`} href={hrefFor(null)} scroll={false} autoFocus aria-label="Close">
                   Close ✕
                 </Link>
               </span>
