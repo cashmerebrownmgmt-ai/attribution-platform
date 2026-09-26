@@ -126,3 +126,22 @@ describe("landing-page visitors", () => {
     expect(l.sessions[0].onLandingPage).toBe(false);
   });
 });
+
+describe("live bounce rate", () => {
+  it("counts only visits that have ended, and ones with one page and no cart or checkout", () => {
+    const other = (v: string, s: string) => ({ visitor_id: v, session_id: s });
+    const l = liveSummary(
+      [
+        ev(20, { ...other("a", "sa") }), // one page, left: bounce
+        ev(22, { ...other("b", "sb") }),
+        ev(21, { ...other("b", "sb"), path: "/p" }), // two pages: not a bounce
+        ev(19, { ...other("c", "sc") }),
+        ev(18, { ...other("c", "sc"), type: "add_to_cart" }), // one page but added to cart
+        ev(1, { ...other("d", "sd") }), // still active: not counted yet
+      ],
+      NOW,
+    );
+    expect(l.bounceRate).toBeCloseTo(1 / 3);
+    expect(liveSummary([], NOW).bounceRate).toBeNull();
+  });
+});

@@ -6,6 +6,7 @@ import { liveSummary, locationLabel, STAGE_LABELS, type LiveSession } from "@/li
 import { loadLiveEvents } from "@/lib/live-data";
 import s from "../dashboard.module.css";
 import { AutoRefresh } from "../_components/AutoRefresh";
+import { Abandoned, ABANDONED_RANGES, type AbandonedRange } from "./Abandoned";
 import { Card, PageHead } from "../_components/ui";
 
 export const dynamic = "force-dynamic";
@@ -111,9 +112,32 @@ function Visitor({ v, now, mode }: { v: LiveSession; now: number; mode: "live" |
   );
 }
 
-export default async function LivePage() {
+export default async function LivePage({ searchParams }: PageProps<"/dashboard/live">) {
   const mode = await currentMode();
   const now = nowMs();
+  const params = await searchParams;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const tab = one(params.tab) === "abandoned" ? "abandoned" : "now";
+  const range = (ABANDONED_RANGES.find((x) => x.id === one(params.range))?.id ?? "today") as AbandonedRange;
+  const tabs = (
+    <div className={s.chips} role="tablist" aria-label="Live view" style={{ marginBottom: 12 }}>
+      <Link href="/dashboard/live" className={`${s.chip} ${tab === "now" ? s.chipOn : ""}`} role="tab" aria-selected={tab === "now"}>
+        Live now
+      </Link>
+      <Link href="/dashboard/live?tab=abandoned" className={`${s.chip} ${tab === "abandoned" ? s.chipOn : ""}`} role="tab" aria-selected={tab === "abandoned"}>
+        Abandoned carts &amp; checkouts
+      </Link>
+    </div>
+  );
+  if (tab === "abandoned") {
+    return (
+      <>
+        <PageHead title="Live" subtitle="Abandoned carts and checkouts, where people drop off, and bounce rate" mode={mode} exportable={false} />
+        {tabs}
+        <Abandoned mode={mode} range={range} now={now} />
+      </>
+    );
+  }
   const events = await loadLiveEvents(mode, now);
   const live = liveSummary(events, now);
   const active = live.sessions.filter((x) => x.active);
@@ -122,6 +146,7 @@ export default async function LivePage() {
   return (
     <>
       <PageHead title="Live" subtitle="Who's on your store and landing pages right now, where they came from and where they're going" mode={mode} action={<AutoRefresh seconds={10} />} exportable={false} />
+      {tabs}
 
       <div className={s.liveHero}>
         <div>
@@ -132,6 +157,7 @@ export default async function LivePage() {
         </div>
         <div className={s.liveHeroStats}>
           <div><b>{live.onLandingPages}</b><span>on landing pages</span></div>
+          <div><b>{live.bounceRate === null ? "—" : `${Math.round(live.bounceRate * 100)}%`}</b><span>bounce · 30 min</span></div>
           <div><b>{live.inCheckout}</b><span>in checkout</span></div>
           <div><b>{live.purchases}</b><span>purchases · 30 min</span></div>
           <div><b>{live.sessions.length}</b><span>visits · 30 min</span></div>

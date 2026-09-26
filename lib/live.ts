@@ -67,6 +67,8 @@ export type LiveSummary = {
   purchases: number;
   /** Active visitors on off-store landing pages right now. */
   onLandingPages: number;
+  /** Of visits in the window that have ended, the share that saw one page and left (no cart, no checkout). */
+  bounceRate: number | null;
 };
 
 const STAGE_BY_TYPE: Record<string, CheckoutStage> = {
@@ -213,5 +215,11 @@ export function liveSummary(events: LiveEvent[], now: number, opts: { activeMinu
     inCheckout: active.filter((s) => s.checkout !== "none" && s.checkout !== "purchased").length,
     purchases: sessions.filter((s) => s.checkout === "purchased").length,
     onLandingPages: active.filter((s) => s.onLandingPage).length,
+    bounceRate: (() => {
+      const left = sessions.filter((s) => !s.active);
+      if (!left.length) return null;
+      const bounced = left.filter((s) => s.pageViews <= 1 && s.checkout === "none" && !s.activity.some((a) => a.kind === "cart")).length;
+      return bounced / left.length;
+    })(),
   };
 }
