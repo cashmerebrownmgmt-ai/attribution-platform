@@ -32,6 +32,8 @@ export type SessionFact = {
   added_to_cart: boolean;
   reached_checkout: boolean;
   completed_checkout: boolean;
+  /** The site the session started on: the store, or a landing page on another domain. */
+  landing_host?: string | null;
 };
 
 export type SessionKpis = {
@@ -113,12 +115,13 @@ export function sessionsByDay(facts: SessionFact[], r: DateRange): SessionDay[] 
   return [...days.entries()].map(([date, d]) => ({ date, sessions: d.sessions, visitors: d.visitors.size, conversions: d.conversions, conversionRate: ratio(d.conversions, d.sessions) }));
 }
 
-export type Dimension = "channel" | "source" | "campaign" | "landing" | "device" | "country" | "region" | "city" | "referrer" | "visitorType" | "exit";
+export type Dimension = "channel" | "source" | "campaign" | "site" | "landing" | "device" | "country" | "region" | "city" | "referrer" | "visitorType" | "exit";
 
 export const DIMENSION_LABELS: Record<Dimension, string> = {
   channel: "Channel",
   source: "Source",
   campaign: "Campaign",
+  site: "Site",
   landing: "Landing page",
   device: "Device",
   country: "Country",
@@ -148,6 +151,8 @@ export function dimensionValue(f: SessionFact, d: Dimension): string {
       return sourceLabel(f).label;
     case "campaign":
       return f.utm_campaign ?? "(none)";
+    case "site":
+      return f.landing_host ?? "(unknown)";
     case "landing":
       return f.landing_path ?? "(unknown)";
     case "device":

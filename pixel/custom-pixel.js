@@ -16,13 +16,14 @@ function uuid() {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-// The storefront tracking script sets _ap_vid; reuse it so checkout joins the same visitor.
-async function visitorId() {
-  let id = await browser.cookie.get(COOKIE);
-  if (!UUID.test(id || "")) {
-    id = uuid();
-    await browser.cookie.set(`${COOKIE}=${id}; path=/; max-age=34128000; SameSite=Lax; Secure`);
-  }
+// Landing pages (e.g. Lovable) put the visitor ID on the cart as the _ap_vid attribute; the
+// storefront tracking script sets the _ap_vid cookie. Prefer the cart's, so checkout joins the visit
+// that brought the buyer here, then the cookie, then a new ID.
+async function visitorId(checkout) {
+  const attr = ((checkout && checkout.attributes) || []).find((a) => a && a.key === COOKIE);
+  let id = attr && UUID.test(attr.value || "") ? attr.value : await browser.cookie.get(COOKIE);
+  if (!UUID.test(id || "")) id = uuid();
+  await browser.cookie.set(`${COOKIE}=${id}; path=/; max-age=34128000; SameSite=Lax; Secure`);
   return id;
 }
 
@@ -31,7 +32,7 @@ async function send(name, event) {
     const checkout = (event.data && event.data.checkout) || {};
     const body = {
       id: uuid(),
-      visitor_id: await visitorId(),
+      visitor_id: await visitorId(checkout),
       type: name,
       source: "pixel",
       occurred_at: Date.parse(event.timestamp) || Date.now(),

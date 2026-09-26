@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "next typegen && tsc --noEmit",
-    "build:tracker": "esbuild tracker/index.ts --bundle --minify --format=iife --target=es2018 --outfile=public/t.js",
+    "build:tracker": "esbuild tracker/index.ts --bundle --minify --format=iife --target=es2018 --outfile=public/t.js && esbuild tracker/landing.ts --bundle --minify --format=iife --target=es2018 --outfile=public/lp.js",
     "prebuild": "npm run build:tracker",
     "predev": "npm run build:tracker"
   },

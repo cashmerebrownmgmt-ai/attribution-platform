@@ -65,6 +65,8 @@ export function demoSessions(endDay: string, days = 200): SessionFact[] {
         ended_at: new Date(start + duration).toISOString(),
         pageviews,
         landing_path: landing,
+        // Some paid-social traffic lands on an off-store landing page (no extra randomness, so the rest of the demo is unchanged).
+        landing_host: src.fbclid && i % 3 === 0 ? "lowend-bundle.lovable.app" : "demo-store.example",
         landing_title: null,
         exit_path: completed ? "/checkouts/thank-you" : pageviews === 1 ? landing : pick(r, [["/cart", 3], ["/collections/all", 2], ["/products/808-essentials", 2], ["/", 2]] as [string, number][]),
         utm_source: src.utm_source ?? null,

@@ -135,7 +135,21 @@ function clampTime(value: number | string, now: Date): string {
 function originAllowed(origin: string | null, events: IncomingEvent[] | null, config: CollectConfig): boolean {
   if (!origin) return false;
   if (origin === "null") return events !== null && events.every((e) => e.source === "pixel");
-  return config.allowedOrigins.includes(origin.toLowerCase());
+  return originMatches(origin.toLowerCase(), config.allowedOrigins);
+}
+
+/**
+ * Exact origins, plus wildcard entries like "https://*.lovable.app" for landing pages on a host's
+ * subdomains (the scheme must match; the bare parent domain isn't included).
+ */
+export function originMatches(origin: string, allowed: string[]): boolean {
+  return allowed.some((a) => {
+    if (!a.includes("*")) return a === origin;
+    const m = a.match(/^(https?):\/\/\*\.([a-z0-9.-]+)$/);
+    if (!m) return false;
+    const [, scheme, parent] = m;
+    return origin.startsWith(`${scheme}://`) && origin.slice(scheme.length + 3).endsWith(`.${parent}`);
+  });
 }
 
 function corsHeaders(origin: string | null): HeadersInit {
@@ -145,7 +159,8 @@ function corsHeaders(origin: string | null): HeadersInit {
 }
 
 export function toRow(e: IncomingEvent, req: Request, deps: CollectDeps, now: Date): EventRow {
-  const storeHosts = deps.config.allowedOrigins.map((o) => o.replace(/^https?:\/\//, ""));
+  // Wildcard (landing-page) entries aren't the store itself, so they don't count as internal referrers.
+  const storeHosts = deps.config.allowedOrigins.filter((o) => !o.includes("*")).map((o) => o.replace(/^https?:\/\//, ""));
   const source = parseSource(e.url, e.referrer ?? null, storeHosts);
   const ua = req.headers.get("user-agent");
   return {

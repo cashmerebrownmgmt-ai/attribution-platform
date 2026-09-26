@@ -131,3 +131,34 @@ describe("add-to-cart detection", () => {
     expect(isAddToCartAction(null)).toBe(false);
   });
 });
+
+describe("cross-domain helpers", async () => {
+  const { decorateStoreUrl, isCartPermalink, isStoreUrl, marketingParams, parseStoreHosts, visitorFromUrl } = await import("@/tracker/core");
+  const V = "8b1c4d2e-1f3a-4b5c-9d6e-7f8a9b0c1d2e";
+  it("parses store hosts and recognizes store links", () => {
+    expect(parseStoreHosts(" https://www.CashmereBrown.com/ , shop.example.com")).toEqual(["cashmerebrown.com", "shop.example.com"]);
+    expect(isStoreUrl("https://cashmerebrown.com/cart/1:1", ["cashmerebrown.com"])).toBe(true);
+    expect(isStoreUrl("https://www.cashmerebrown.com/", ["cashmerebrown.com"])).toBe(true);
+    expect(isStoreUrl("https://evilcashmerebrown.com/", ["cashmerebrown.com"])).toBe(false);
+    expect(isStoreUrl("mailto:x@cashmerebrown.com", ["cashmerebrown.com"])).toBe(false);
+    expect(isStoreUrl("/cart/1:1", ["cashmerebrown.com"], "https://lp.lovable.app/")).toBe(false);
+  });
+  it("recognizes cart permalinks", () => {
+    expect(isCartPermalink("https://cashmerebrown.com/cart/46838815981789:1")).toBe(true);
+    expect(isCartPermalink("https://cashmerebrown.com/cart/1:2,3:1")).toBe(true);
+    expect(isCartPermalink("https://cashmerebrown.com/cart")).toBe(false);
+  });
+  it("decorates without overriding params already on the link", () => {
+    const out = new URL(decorateStoreUrl("https://cashmerebrown.com/cart/1:1?utm_source=lp&discount=SAVE", V, { utm_source: "facebook", utm_content: "a1" }));
+    expect(out.searchParams.get("attributes[_ap_vid]")).toBe(V);
+    expect(out.searchParams.get("utm_source")).toBe("lp");
+    expect(out.searchParams.get("utm_content")).toBe("a1");
+    expect(out.searchParams.get("discount")).toBe("SAVE");
+    expect(decorateStoreUrl("https://cashmerebrown.com/cart/1:1", "not-a-uuid", {})).toBe("https://cashmerebrown.com/cart/1:1");
+  });
+  it("reads marketing params and handed-over visitor IDs", () => {
+    expect(marketingParams("https://lp.example/?utm_source=facebook&fbclid=F&x=1")).toEqual({ utm_source: "facebook", fbclid: "F" });
+    expect(visitorFromUrl(`https://cashmerebrown.com/?_ap_vid=${V}`)).toBe(V);
+    expect(visitorFromUrl("https://cashmerebrown.com/?_ap_vid=junk")).toBeNull();
+  });
+});

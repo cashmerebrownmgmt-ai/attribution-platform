@@ -1,82 +1,11 @@
 /**
- * Storefront tracking script, bundled to public/t.js and loaded in the theme with:
+ * Storefront tracking script, bundled to public/t.js and loaded in the Shopify theme with:
  *   <script src="https://<app-domain>/t.js" async></script>
+ * (Landing pages on other domains use lp.js instead; see tracker/landing.ts.)
  * Events go to /api/collect on the same origin the script was loaded from.
  */
-import {
-  ADD_TO_CART_KEY,
-  CART_ATTRIBUTE,
-  CART_COUNT_KEY,
-  cartCountIncreased,
-  isAddToCartAction,
-  SESSION_KEY,
-  VISITOR_COOKIE,
-  cartNeedsTag,
-  cookieDomainCandidates,
-  isUuid,
-  nextSession,
-  parseSession,
-  readCookie,
-  sourceKey,
-  uuid,
-  visitorCookie,
-} from "./core";
-
-type CustomerPrivacy = { analyticsProcessingAllowed?: () => boolean };
-type ShopifyGlobal = {
-  customerPrivacy?: CustomerPrivacy;
-  loadFeatures?: (features: { name: string; version: string }[], cb: (err?: unknown) => void) => void;
-  routes?: { root?: string };
-};
-type TrackerWindow = Window & typeof globalThis & { Shopify?: ShopifyGlobal; __apTracker?: boolean };
-
-function safe<T>(fn: () => T, fallback: T): T {
-  try {
-    return fn();
-  } catch {
-    return fallback;
-  }
-}
-
-/** Read the visitor ID, or create one and store it on the broadest domain the browser accepts. */
-function ensureVisitorId(w: TrackerWindow): string {
-  const doc = w.document;
-  const existing = readCookie(doc.cookie, VISITOR_COOKIE);
-  const id = isUuid(existing) ? existing : uuid(w.crypto);
-  const secure = w.location.protocol === "https:";
-  for (const domain of cookieDomainCandidates(w.location.hostname)) {
-    doc.cookie = visitorCookie(id, domain, secure); // refresh expiry on every visit
-    if (readCookie(doc.cookie, VISITOR_COOKIE) === id) break;
-  }
-  return id;
-}
-
-function send(w: TrackerWindow, endpoint: string, body: object): void {
-  const json = JSON.stringify(body);
-  // sendBeacon posts text/plain, which avoids a CORS preflight and survives page unloads.
-  if (w.navigator.sendBeacon?.(endpoint, json)) return;
-  void w.fetch(endpoint, { method: "POST", body: json, keepalive: true, mode: "cors", credentials: "omit" }).catch(() => {});
-}
-
-type Ctx = { w: TrackerWindow; endpoint: string; visitorId: string; sessionId: string };
-
-/** One add_to_cart event per session. */
-function reportAddToCart(c: Ctx): void {
-  const done = safe(() => c.w.sessionStorage.getItem(ADD_TO_CART_KEY), null);
-  if (done === c.sessionId) return;
-  safe(() => c.w.sessionStorage.setItem(ADD_TO_CART_KEY, c.sessionId), undefined);
-  send(c.w, c.endpoint, {
-    id: uuid(c.w.crypto),
-    visitor_id: c.visitorId,
-    session_id: c.sessionId,
-    type: "add_to_cart",
-    source: "tracker",
-    occurred_at: Date.now(),
-    url: c.w.location.href,
-    referrer: null,
-    title: c.w.document.title ? c.w.document.title.slice(0, 300) : null,
-  });
-}
+import { CART_ATTRIBUTE, CART_COUNT_KEY, cartCountIncreased, cartNeedsTag, isAddToCartAction, visitorFromUrl } from "./core";
+import { endpointFor, pageView, reportAddToCart, safe, type Ctx, type TrackerWindow } from "./runtime";
 
 /**
  * Put the visitor ID on the cart so Shopify copies it onto the order's note_attributes, and notice
@@ -104,26 +33,8 @@ async function syncCart(c: Ctx): Promise<void> {
 }
 
 export function track(w: TrackerWindow, endpoint: string): void {
-  const now = Date.now();
-  const url = w.location.href;
-  const visitorId = ensureVisitorId(w);
-  const prev = safe(() => parseSession(w.sessionStorage.getItem(SESSION_KEY)), null);
-  const session = nextSession(prev, now, sourceKey(url), () => uuid(w.crypto));
-  safe(() => w.sessionStorage.setItem(SESSION_KEY, JSON.stringify(session)), undefined);
-
-  send(w, endpoint, {
-    id: uuid(w.crypto),
-    visitor_id: visitorId,
-    session_id: session.id,
-    type: "page_view",
-    source: "tracker",
-    occurred_at: now,
-    url,
-    referrer: w.document.referrer || null,
-    title: w.document.title ? w.document.title.slice(0, 300) : null,
-  });
-
-  const ctx: Ctx = { w, endpoint, visitorId, sessionId: session.id };
+  // A visitor handed over from a landing page (?_ap_vid=…) continues that visit here.
+  const ctx = pageView(w, endpoint, visitorFromUrl(w.location.href));
   // Classic product forms post to /cart/add; catch them as they're submitted.
   w.document.addEventListener(
     "submit",
@@ -143,7 +54,7 @@ export function track(w: TrackerWindow, endpoint: string): void {
 export function init(w: TrackerWindow, scriptSrc: string | null): void {
   if (w.__apTracker || !scriptSrc) return;
   w.__apTracker = true;
-  const endpoint = new URL("/api/collect", scriptSrc).href;
+  const endpoint = endpointFor(scriptSrc);
 
   let started = false;
   const start = () => {

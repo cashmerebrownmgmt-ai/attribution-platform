@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { init, track } from "@/tracker/index";
+import { trackLanding } from "@/tracker/landing";
 
 const ENDPOINT = "https://app.example.com/api/collect";
 const SCRIPT = "https://app.example.com/t.js";
@@ -167,5 +168,73 @@ describe("init and consent", () => {
     init(window, SCRIPT);
     expect(loadFeatures).toHaveBeenCalledWith([{ name: "consent-tracking-api", version: "0.1" }], expect.any(Function));
     expect(beacons).toHaveLength(1);
+  });
+});
+
+describe("landing pages on other domains", () => {
+  const STORE = ["cashmerebrown.com"];
+  const V = () => cookie("_ap_vid")!;
+
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/?utm_source=facebook&utm_medium=paid&utm_campaign=c1&utm_content=a1&fbclid=F1");
+  });
+
+  it("tracks the landing visit but leaves the Shopify cart alone", async () => {
+    trackLanding(window, ENDPOINT, STORE);
+    await flush();
+    expect(beacons).toHaveLength(1);
+    expect(beacons[0].body).toMatchObject({ type: "page_view" });
+    expect(String(beacons[0].body.url)).toContain("utm_content=a1");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("adds the visitor ID and ad params to cart-permalink links as they're clicked", () => {
+    trackLanding(window, ENDPOINT, STORE);
+    const a = document.createElement("a");
+    a.href = "https://cashmerebrown.com/cart/46838815981789:1";
+    a.target = "_blank";
+    a.addEventListener("click", (e) => e.preventDefault()); // don't navigate jsdom
+    document.body.appendChild(a);
+    a.click();
+    const u = new URL(a.href);
+    expect(u.searchParams.get("attributes[_ap_vid]")).toBe(V());
+    expect(u.searchParams.get("_ap_vid")).toBe(V());
+    expect(u.searchParams.get("utm_content")).toBe("a1");
+    expect(u.searchParams.get("fbclid")).toBe("F1");
+    // (Listeners from earlier tests share this jsdom document; on a real page the script runs once.)
+    expect(beacons[0].body.type).toBe("page_view");
+    expect(beacons.some((b) => b.body.type === "add_to_cart" && b.body.visitor_id === V())).toBe(true);
+    a.remove();
+  });
+
+  it("decorates window.open to the store, and nothing else", () => {
+    const opened: (string | undefined)[] = [];
+    window.open = ((u?: string | URL) => (opened.push(u === undefined ? u : String(u)), null)) as typeof window.open;
+    trackLanding(window, ENDPOINT, STORE);
+    window.open("https://cashmerebrown.com/cart/47359723962589:1", "_blank", "noopener,noreferrer");
+    window.open("https://example.org/page", "_blank");
+    expect(new URL(opened[0]!).searchParams.get("attributes[_ap_vid]")).toBe(V());
+    expect(opened[1]).toBe("https://example.org/page");
+  });
+
+  it("keeps the session's ad params on later pages without UTMs", () => {
+    trackLanding(window, ENDPOINT, STORE);
+    window.history.replaceState(null, "", "/faq");
+    delete (window as { __apTracker?: boolean }).__apTracker;
+    const opened: string[] = [];
+    window.open = ((u?: string | URL) => (opened.push(String(u)), null)) as typeof window.open;
+    trackLanding(window, ENDPOINT, STORE);
+    window.open("https://www.cashmerebrown.com/collections/all");
+    const u = new URL(opened[0]);
+    expect(u.searchParams.get("utm_campaign")).toBe("c1");
+    expect(u.searchParams.get("_ap_vid")).toBe(V());
+    expect(u.searchParams.has("attributes[_ap_vid]")).toBe(false); // not a cart permalink
+  });
+
+  it("on the store, continues the visitor a landing page handed over", () => {
+    const handed = "8b1c4d2e-1f3a-4b5c-9d6e-7f8a9b0c1d2e";
+    window.history.replaceState(null, "", `/products/tee?_ap_vid=${handed}`);
+    track(window, ENDPOINT);
+    expect(beacons[0].body.visitor_id).toBe(handed);
   });
 });

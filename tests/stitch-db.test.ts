@@ -71,8 +71,19 @@ describe("session_facts", () => {
 
     const { rows } = await pg.query<Record<string, unknown>>("select * from public.session_facts('2026-09-19', '2026-09-22')");
     expect(rows).toHaveLength(2);
-    expect(rows[0]).toMatchObject({ session_id: S1, pageviews: 2, landing_path: "/", exit_path: "/cart", utm_source: "ig", device: "mobile", city: "Chicago", is_new_visitor: true, added_to_cart: true, reached_checkout: true, completed_checkout: true });
+    expect(rows[0]).toMatchObject({ landing_host: null, session_id: S1, pageviews: 2, landing_path: "/", exit_path: "/cart", utm_source: "ig", device: "mobile", city: "Chicago", is_new_visitor: true, added_to_cart: true, reached_checkout: true, completed_checkout: true });
     expect(rows[1]).toMatchObject({ session_id: S2, pageviews: 1, utm_source: null, is_new_visitor: false, added_to_cart: false, reached_checkout: false });
+  });
+});
+
+describe("session_facts site", () => {
+  it("records the site a session started on", async () => {
+    const V = "abababab-abab-4bab-8bab-abababababab";
+    const S = "cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd";
+    await pg.exec(`insert into visitors (id, first_seen_at) values ('${V}', '2026-09-20T10:00:00Z')`);
+    await pg.query(`insert into events (id, visitor_id, session_id, type, source, occurred_at, path, url) values ('efefefef-efef-4fef-8fef-efefefefefe1', $1, $2, 'page_view', 'tracker', '2026-09-20T10:00:00Z', '/', 'https://WWW.LowEnd-Bundle.lovable.app/?utm_source=facebook')`, [V, S]);
+    const { rows } = await pg.query<{ landing_host: string }>("select landing_host from public.session_facts('2026-09-19', '2026-09-22') where session_id = $1", [S]);
+    expect(rows).toEqual([{ landing_host: "lowend-bundle.lovable.app" }]);
   });
 });
 

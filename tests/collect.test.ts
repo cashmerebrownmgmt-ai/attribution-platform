@@ -191,3 +191,20 @@ describe("OPTIONS /api/collect", () => {
     expect(res.headers.get("access-control-allow-origin")).toBeNull();
   });
 });
+
+describe("originMatches", async () => {
+  const { originMatches } = await import("@/lib/collect");
+  const allowed = ["https://cashmerebrown.com", "https://*.lovable.app"];
+  it("allows exact origins and subdomains of wildcard entries", () => {
+    expect(originMatches("https://cashmerebrown.com", allowed)).toBe(true);
+    expect(originMatches("https://low-end-bundle.lovable.app", allowed)).toBe(true);
+    expect(originMatches("https://a.b.lovable.app", allowed)).toBe(true);
+  });
+  it("rejects look-alikes, the bare parent and other schemes", () => {
+    expect(originMatches("https://lovable.app", allowed)).toBe(false);
+    expect(originMatches("https://evil-lovable.app", allowed)).toBe(false);
+    expect(originMatches("https://x.lovable.app.evil.com", allowed)).toBe(false);
+    expect(originMatches("http://x.lovable.app", allowed)).toBe(false);
+    expect(originMatches("https://shop.cashmerebrown.com", allowed)).toBe(false);
+  });
+});

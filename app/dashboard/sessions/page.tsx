@@ -14,7 +14,7 @@ import { Tips } from "../_components/Tips";
 import { behaviorTips } from "@/lib/behavior-insights";
 import { daysIn } from "@/lib/metrics/compute";
 
-const DIMS: Dimension[] = ["channel", "source", "campaign", "landing", "exit", "device", "visitorType", "country", "region", "city", "referrer"];
+const DIMS: Dimension[] = ["channel", "source", "campaign", "site", "landing", "exit", "device", "visitorType", "country", "region", "city", "referrer"];
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function SessionsPage({ searchParams }: PageProps<"/dashboard/sessions">) {

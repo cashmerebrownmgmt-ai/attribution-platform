@@ -122,3 +122,85 @@ export function cartCountIncreased(previous: string | null, current: number): bo
 export function isAddToCartAction(action: string | null | undefined): boolean {
   return !!action && /\/cart\/add(\.js)?(\?|$|#)/.test(action);
 }
+
+// ─── Landing pages on other domains (e.g. Lovable) ───────────────────────────
+
+/** Query parameter that carries the visitor ID across domains to the store. */
+export const VISITOR_PARAM = "_ap_vid";
+/** sessionStorage key for the marketing params a landing-page session arrived with. */
+export const CARRY_KEY = "_ap_carry";
+const CARRY_KEYS = [...UTM_KEYS, ...CLICK_ID_KEYS];
+
+/** Hostnames from a comma-separated `data-store` attribute, e.g. "cashmerebrown.com". */
+export function parseStoreHosts(attr: string | null | undefined): string[] {
+  return (attr ?? "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, ""))
+    .filter(Boolean);
+}
+
+export function isStoreUrl(url: string, storeHosts: string[], base?: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url, base);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  const h = u.hostname.toLowerCase().replace(/^www\./, "");
+  return storeHosts.some((s) => h === s || h.endsWith(`.${s}`));
+}
+
+/** A Shopify cart permalink (/cart/<variant>:<qty>[,…]) goes straight to checkout. */
+export const isCartPermalink = (url: string) => {
+  try {
+    return /^\/cart\/\d+:\d+(,\d+:\d+)*\/?$/.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+};
+
+/** Marketing params (UTMs, click IDs) on a URL. */
+export function marketingParams(url: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  try {
+    const p = new URL(url).searchParams;
+    for (const k of CARRY_KEYS) {
+      const v = p.get(k)?.trim();
+      if (v) out[k] = v.slice(0, 200);
+    }
+  } catch {
+    // ignore
+  }
+  return out;
+}
+
+/**
+ * Add the visitor ID and the session's marketing params to a link to the store, so the order can be
+ * matched to this landing-page visit. Cart permalinks carry the ID as a cart attribute, which Shopify
+ * copies onto the order; other store pages carry it as a query parameter the storefront script
+ * adopts. Params already on the link win.
+ */
+export function decorateStoreUrl(url: string, visitorId: string, carry: Record<string, string>, base?: string): string {
+  let u: URL;
+  try {
+    u = new URL(url, base);
+  } catch {
+    return url;
+  }
+  if (!isUuid(visitorId)) return u.toString();
+  if (isCartPermalink(u.toString())) u.searchParams.set(`attributes[${CART_ATTRIBUTE}]`, visitorId);
+  u.searchParams.set(VISITOR_PARAM, visitorId);
+  for (const [k, v] of Object.entries(carry)) if (!u.searchParams.has(k)) u.searchParams.set(k, v);
+  return u.toString();
+}
+
+/** The visitor ID a landing page passed along, if the URL has a valid one. */
+export function visitorFromUrl(url: string): string | null {
+  try {
+    const v = new URL(url).searchParams.get(VISITOR_PARAM);
+    return isUuid(v) ? v : null;
+  } catch {
+    return null;
+  }
+}

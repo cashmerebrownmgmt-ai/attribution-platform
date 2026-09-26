@@ -18,7 +18,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     // Generated tracker bundle.
-    "public/t.js",
+    "public/t.js", "public/lp.js",
     // Pasted into Shopify; runs in its sandbox with its own globals (analytics, browser).
     "pixel/**",
   ]),
