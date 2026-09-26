@@ -2,7 +2,9 @@ import { CHANNEL_LABELS } from "@/lib/debug";
 import { PLATFORM_LABELS } from "@/lib/dashboard/filters";
 import { pct, roas } from "@/lib/dashboard/format";
 import { loadPage } from "@/lib/dashboard/page";
-import { byChannel, chartRange, daysIn, performance, spendByDay } from "@/lib/metrics/compute";
+import { byChannel, daysIn, performance, spendByDay } from "@/lib/metrics/compute";
+import { metaHourlySpend } from "@/lib/meta-hourly";
+import { storeDay, storeHours } from "@/lib/tz";
 import { AD_PLATFORMS } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
 import { BarList } from "../_components/charts/BarList";
@@ -18,13 +20,20 @@ export default async function ChannelsPage({ searchParams }: PageProps<"/dashboa
   const t = data.settings;
   const channels = byChannel(data, f);
   const platforms = performance(data, f, "platform");
-  const chartR = chartRange(f.range);
-  const extended = chartR.from !== f.range.from;
-  const dates = daysIn(chartR);
-
+  // Charts cover exactly the selected range: by day, or by hour for a single day.
+  const hourly = f.range.from === f.range.to;
+  const dates = daysIn(f.range);
   // Same totals as Ads Manager: account-level spend where available (see spendByDay).
-  const spendByPlatform = new Map(AD_PLATFORMS.filter((p) => f.platform === "all" || p === f.platform).map((p) => [p, spendByDay(data, chartR, p)]));
-  const activePlatforms = AD_PLATFORMS.filter((p) => [...(spendByPlatform.get(p)?.values() ?? [])].some((v) => v > 0));
+  const spendByPlatform = new Map(AD_PLATFORMS.filter((p) => f.platform === "all" || p === f.platform).map((p) => [p, spendByDay(data, f.range, p)]));
+  const metaHours = hourly && mode === "live" && spendByPlatform.has("meta") ? await metaHourlySpend(f.range.to) : null;
+  const now = Date.parse(data.generatedAt);
+  const lastHour = hourly && storeDay(now) === f.range.to ? Math.floor(storeHours(now)) : 23;
+  const hourLabels = Array.from({ length: 24 }, (_, h) => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "am" : "pm"}`);
+  const activePlatforms = hourly
+    ? metaHours && metaHours.some((v) => v > 0)
+      ? (["meta"] as const)
+      : []
+    : AD_PLATFORMS.filter((p) => [...(spendByPlatform.get(p)?.values() ?? [])].some((v) => v > 0));
 
   return (
     <>
@@ -40,14 +49,22 @@ export default async function ChannelsPage({ searchParams }: PageProps<"/dashboa
             items={channels.map((c) => ({ key: c.channel, label: CHANNEL_LABELS[c.channel] ?? c.channel, value: c.revenue, note: `${pct(c.share, 0)} · ${c.orders} orders` }))}
           />
         </Card>
-        <Card title="Daily spend by platform" sub={extended ? "Last 14 days · your selected range is shaded" : "Same scale for all platforms"}>
+        <Card title={hourly ? "Spend by platform, by hour" : "Daily spend by platform"} sub={hourly ? "Eastern time. Meta reports hourly spend with a delay." : "Same scale for all platforms"}>
           {activePlatforms.length === 0 ? (
-            <div className={s.empty}>No ad spend in this range.</div>
+            <div className={s.empty}>{hourly ? "No hourly spend reported for this day yet." : "No ad spend in this range."}</div>
+          ) : hourly ? (
+            <LineChart
+              label="Ad spend by hour"
+              dates={hourLabels}
+              xFormat="raw"
+              kind="money"
+              currency={cur}
+              series={[{ name: PLATFORM_LABELS.meta, color: PLATFORM_COLORS.meta, values: hourLabels.map((_, h) => (h > lastHour ? null : (metaHours?.[h] ?? 0))) }]}
+            />
           ) : (
             <LineChart
               label="Daily ad spend by platform"
               dates={dates}
-              highlight={extended ? f.range : undefined}
               kind="money"
               currency={cur}
               series={activePlatforms.map((p) => ({ name: PLATFORM_LABELS[p], color: PLATFORM_COLORS[p], values: dates.map((d) => spendByPlatform.get(p)?.get(d) ?? 0) }))}

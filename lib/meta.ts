@@ -475,3 +475,16 @@ export function parsePreviewIframe(body: string): PreviewFrame | null {
   };
   return { src: url.toString(), width: size("width", 335), height: size("height", 560) };
 }
+
+/**
+ * Meta's hourly account spend for one day (breakdown hourly_stats_aggregated_by_advertiser_time_zone)
+ * as 24 values, midnight first, in the ad account's time zone. Hours Meta hasn't reported are 0.
+ */
+export function parseHourlySpend(rows: { spend?: unknown; hourly_stats_aggregated_by_advertiser_time_zone?: unknown }[]): number[] {
+  const out = new Array(24).fill(0) as number[];
+  for (const r of rows) {
+    const h = Number(String(r.hourly_stats_aggregated_by_advertiser_time_zone ?? "").slice(0, 2));
+    if (Number.isInteger(h) && h >= 0 && h < 24) out[h] = Math.round((out[h] + num(r.spend)) * 100) / 100;
+  }
+  return out;
+}

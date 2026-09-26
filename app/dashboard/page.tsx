@@ -3,7 +3,8 @@ import { CHANNEL_LABELS } from "@/lib/debug";
 import { filterQuery, PLATFORM_LABELS } from "@/lib/dashboard/filters";
 import { money, num, pct, roas, signedPct } from "@/lib/dashboard/format";
 import { loadPage } from "@/lib/dashboard/page";
-import { byChannel, chartRange, compareKpis, daily, delta, hourlyRevenue, performance } from "@/lib/metrics/compute";
+import { byChannel, compareKpis, delta, performance, timeline } from "@/lib/metrics/compute";
+import { metaHourlySpend } from "@/lib/meta-hourly";
 import s from "./dashboard.module.css";
 import { BarList } from "./_components/charts/BarList";
 import { LineChart } from "./_components/charts/LineChart";
@@ -33,13 +34,25 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
   const now = Date.parse(data.generatedAt);
   const { current: k, previous: p, sameTime } = compareKpis(data, f, { now });
   const vs = sameTime ? "vs yesterday so far" : "vs prev.";
-  // Short ranges still get two weeks of context in the charts, with the chosen days shaded.
-  const chartR = chartRange(f.range);
-  const extended = chartR.from !== f.range.from;
-  const days = daily(data, { ...f, range: chartR });
-  const dates = days.map((d) => d.date);
+  // Charts cover exactly the selected range: by day, or by hour when it's a single day.
   const singleDay = f.range.from === f.range.to;
-  const hours = singleDay ? hourlyRevenue(data, f, f.range.to, now) : [];
+  const hourlySpend = singleDay && mode === "live" && (f.platform === "all" || f.platform === "meta") ? await metaHourlySpend(f.range.to) : null;
+  const tl = timeline(data, f, { now, hourlySpend });
+  const hourly = tl.unit === "hour";
+  const pts = tl.points;
+  const labels = pts.map((x) => x.label);
+  const cumulative = (vals: (number | null)[]) => {
+    let t = 0;
+    return vals.map((v) => (v === null ? null : (t += v)));
+  };
+  // ROAS line: 7-day rolling by day; for a single day, running ROAS through the day.
+  const roasLine = hourly
+    ? (() => {
+        const rev = cumulative(pts.map((x) => x.paidRevenue));
+        const sp = cumulative(pts.map((x) => x.spend));
+        return rev.map((v, i) => (v === null || !sp[i] ? null : v / (sp[i] as number)));
+      })()
+    : rolling(pts.map((x) => x.paidRevenue ?? 0), pts.map((x) => x.spend ?? 0), 7);
   const platforms = performance(data, f, "platform");
   const channels = byChannel(data, f);
   const ads = performance(data, f, "ad");
@@ -92,13 +105,13 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
       </div>
 
       <div className={s.kpiGrid}>
-        <Kpi label="Ad spend" value={money(k.spend, cur)} current={k.spend} previous={p.spend} vs={vs} neutral trend={days.map((d) => d.spend)} target={metaAsOf ? `Meta as of ${metaAsOf}` : undefined} />
+        <Kpi label="Ad spend" value={money(k.spend, cur)} current={k.spend} previous={p.spend} vs={vs} neutral trend={pts.map((x) => x.spend)} target={metaAsOf ? `Meta as of ${metaAsOf}` : undefined} />
         <Kpi
           label="ROAS (paid)"
           value={roas(k.roas)}
           current={k.roas}
           previous={p.roas} vs={vs}
-          trend={rolling(days.map((d) => d.paidRevenue), days.map((d) => d.spend), 7)}
+          trend={roasLine}
           target={t.targetRoas ? `Target ${roas(t.targetRoas)}` : undefined}
         />
         <Kpi label="MER (blended)" value={roas(k.mer)} current={k.mer} previous={p.mer} vs={vs} />
@@ -108,21 +121,28 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
       </div>
 
       <div className={s.grid2}>
-        <Card title="Revenue and ad spend" sub={extended ? "Daily, last 14 days · your selected range is shaded" : "Daily, same scale"}>
+        <Card
+          title="Revenue and ad spend"
+          sub={
+            hourly
+              ? `By hour, ${longDay(f.range.to)} (Eastern)${hourlySpend ? "" : mode === "live" ? " · Meta hasn't reported hourly spend for this day yet" : ""}`
+              : "Daily, same scale"
+          }
+        >
           <LineChart
-            label="Daily revenue and ad spend"
-            dates={dates}
-            highlight={extended ? f.range : undefined}
+            label={hourly ? "Revenue and ad spend by hour" : "Daily revenue and ad spend"}
+            dates={labels}
+            xFormat={hourly ? "raw" : "date"}
             kind="money"
             currency={cur}
             series={[
-              { name: "Revenue", color: "var(--s1)", values: days.map((d) => d.revenue), area: true },
-              { name: "Ad spend", color: "var(--s2)", values: days.map((d) => d.spend) },
+              { name: "Revenue", color: "var(--s1)", values: pts.map((x) => x.revenue), area: true },
+              ...(pts.some((x) => x.spend !== null) ? [{ name: "Ad spend", color: "var(--s2)", values: pts.map((x) => x.spend) }] : []),
             ]}
           />
           <TableToggle>
             <DataTable
-              nameLabel="Date"
+              nameLabel={hourly ? "Hour" : "Date"}
               currency={cur}
               defaultSort="name"
               columns={[
@@ -131,47 +151,26 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
                 { key: "orders", label: "Orders" },
                 { key: "roas", label: "ROAS", kind: "roas" },
               ]}
-              rows={days.map((d) => ({ id: d.date, name: d.date, values: { revenue: d.revenue, spend: d.spend, orders: d.orders, roas: d.roas } }))}
+              rows={pts.map((x, i) => ({ id: `${i}`, name: x.label, values: { revenue: x.revenue, spend: x.spend, orders: x.orders, roas: x.spend ? (x.paidRevenue ?? 0) / x.spend : null } }))}
             />
           </TableToggle>
         </Card>
-        <Card title="Paid ROAS" sub="7-day rolling, first-party attribution">
+        <Card title="Paid ROAS" sub={hourly ? "Running total through the day, first-party attribution" : "7-day rolling, first-party attribution"}>
           <LineChart
-            label="Rolling 7-day paid ROAS"
-            dates={dates}
-            highlight={extended ? f.range : undefined}
+            label={hourly ? "Running paid ROAS through the day" : "Rolling 7-day paid ROAS"}
+            dates={labels}
+            xFormat={hourly ? "raw" : "date"}
             kind="roas"
-            series={[{ name: "ROAS", color: "var(--s1)", values: rolling(days.map((d) => d.paidRevenue), days.map((d) => d.spend), 7) }]}
+            series={[{ name: "ROAS", color: "var(--s1)", values: roasLine }]}
             reference={t.targetRoas ? { value: t.targetRoas, label: `Target ${roas(t.targetRoas)}` } : undefined}
           />
-          {days.some((d) => d.spend > 0) && !days.some((d) => d.paidRevenue > 0) && (
+          {k.spend > 0 && k.paidRevenue === 0 && (
             <p className={s.cardSub} style={{ marginTop: 8 }}>
               No sales matched to a specific ad yet. Sales are matched through the tracking tags on each ad, so this fills in as tagged ads get purchases. Meta&apos;s own count is under ROAS by platform.
             </p>
           )}
         </Card>
       </div>
-
-      {singleDay && (
-        <Card title={`${longDay(f.range.to)} so far`} sub="Running revenue by hour (Eastern), against the day before. Ad platforms report spend per day, not per hour.">
-          <LineChart
-            label="Running revenue by hour"
-            dates={hours.map((h) => `${h.hour === 0 ? 12 : h.hour > 12 ? h.hour - 12 : h.hour}${h.hour < 12 ? "am" : "pm"}`)}
-            xFormat="raw"
-            kind="money"
-            currency={cur}
-            height={180}
-            series={[
-              { name: "Revenue", color: "var(--s1)", values: hours.map((h) => h.revenue), area: true },
-              { name: "Day before", color: "var(--ink-2)", values: hours.map((h) => h.previous), dashed: true },
-            ]}
-          />
-          <p className={s.cardSub} style={{ marginTop: 8 }}>
-            Revenue {money(k.revenue, cur)} · {num(k.orders)} orders · ad spend {money(k.spend, cur)}
-          </p>
-        </Card>
-      )}
-      {singleDay && <div style={{ height: 12 }} />}
 
       <div className={s.grid2}>
         <Card title="ROAS by platform" sub="Our tracking vs what each platform reports">

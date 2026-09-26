@@ -5,6 +5,7 @@
 import { CHANNEL_LABELS } from "./debug";
 import { addDays, dayOf, daysIn, ratio, type DateRange } from "./metrics/compute";
 import { sourceLabel } from "./live";
+import { storeDay, storeHours } from "./tz";
 
 export type SessionFact = {
   session_id: string;
@@ -204,4 +205,23 @@ export function formatDuration(sec: number | null): string {
   if (sec === null || !Number.isFinite(sec)) return "—";
   const s = Math.round(sec);
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+}
+
+/** Sessions, visitors and purchases by hour (store time) for one day; hours still to come are null. */
+export function sessionsByHour(facts: SessionFact[], day: string, now?: number): { label: string; sessions: number | null; visitors: number | null; conversions: number | null }[] {
+  const lastHour = now !== undefined && storeDay(now) === day ? Math.floor(storeHours(now)) : 23;
+  const hours = Array.from({ length: 24 }, () => ({ sessions: 0, visitors: new Set<string>(), conversions: 0 }));
+  for (const f of facts) {
+    if (dayOf(f.started_at) !== day) continue;
+    const h = hours[Math.min(23, Math.floor(storeHours(f.started_at)))];
+    h.sessions += 1;
+    h.visitors.add(f.visitor_id);
+    if (f.completed_checkout) h.conversions += 1;
+  }
+  return hours.map((h, i) => ({
+    label: `${i % 12 === 0 ? 12 : i % 12}${i < 12 ? "am" : "pm"}`,
+    sessions: i > lastHour ? null : h.sessions,
+    visitors: i > lastHour ? null : h.visitors.size,
+    conversions: i > lastHour ? null : h.conversions,
+  }));
 }

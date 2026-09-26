@@ -3,7 +3,7 @@ import { filterQuery } from "@/lib/dashboard/filters";
 import { num, pct } from "@/lib/dashboard/format";
 import { loadPage } from "@/lib/dashboard/page";
 import { todayUtc } from "@/lib/dashboard/data";
-import { breakdown, DIMENSION_LABELS, formatDuration, previousSessionRange, sessionKpis, sessionsByDay, sessionsIn, type Dimension } from "@/lib/sessions";
+import { breakdown, DIMENSION_LABELS, formatDuration, previousSessionRange, sessionKpis, sessionsByDay, sessionsByHour, sessionsIn, type Dimension } from "@/lib/sessions";
 import { loadSessions } from "@/lib/sessions-data";
 import s from "../dashboard.module.css";
 import { LineChart } from "../_components/charts/LineChart";
@@ -12,22 +12,23 @@ import { Card, Filters, Kpi, PageHead, TableToggle } from "../_components/ui";
 import { ShopifyComparison } from "./ShopifyComparison";
 import { Tips } from "../_components/Tips";
 import { behaviorTips } from "@/lib/behavior-insights";
-import { chartRange, daysIn } from "@/lib/metrics/compute";
+import { daysIn } from "@/lib/metrics/compute";
 
 const DIMS: Dimension[] = ["channel", "source", "campaign", "landing", "exit", "device", "visitorType", "country", "region", "city", "referrer"];
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
 export default async function SessionsPage({ searchParams }: PageProps<"/dashboard/sessions">) {
-  const { mode, filters: f, params } = await loadPage(searchParams);
-  // Load enough for two weeks of chart context even when a short range is selected.
-  const chartR = chartRange(f.range);
-  const extended = chartR.from !== f.range.from;
-  const facts = await loadSessions(mode, extended ? chartR : f.range, todayUtc());
+  const { mode, data, filters: f, params } = await loadPage(searchParams);
+  const facts = await loadSessions(mode, f.range, todayUtc());
   const cur = sessionsIn(facts, f.range);
   const prev = sessionsIn(facts, previousSessionRange(f.range));
   const k = sessionKpis(cur);
   const p = sessionKpis(prev);
-  const days = sessionsByDay(sessionsIn(facts, chartR), chartR);
+  // Charts cover exactly the selected range: by day, or by hour for a single day.
+  const hourly = f.range.from === f.range.to;
+  const days = hourly
+    ? sessionsByHour(facts, f.range.to, Date.parse(data.generatedAt)).map((h) => ({ date: h.label, sessions: h.sessions, visitors: h.visitors, conversions: h.conversions, conversionRate: h.sessions ? (h.conversions ?? 0) / h.sessions : null }))
+    : sessionsByDay(cur, f.range);
   const dim = DIMS.find((d) => d === one(params.dim)) ?? "channel";
   const rows = breakdown(cur, dim, 50);
   const maxFunnel = Math.max(1, k.funnel[0].sessions);
@@ -82,11 +83,11 @@ export default async function SessionsPage({ searchParams }: PageProps<"/dashboa
           </div>
           <p className={s.cardSub} style={{ marginTop: 10 }}>Previous period: {pct(p.addToCartRate, 1)} added to cart · {pct(p.checkoutRate, 1)} reached checkout · {pct(p.conversionRate, 2)} purchased</p>
         </Card>
-        <Card title="Sessions and visitors" sub={extended ? "Daily, last 14 days · your selected range is shaded" : "Daily"}>
+        <Card title="Sessions and visitors" sub={hourly ? "By hour (Eastern)" : "Daily"}>
           <LineChart
-            label="Daily sessions and visitors"
+            label={hourly ? "Sessions and visitors by hour" : "Daily sessions and visitors"}
             dates={days.map((d) => d.date)}
-            highlight={extended ? f.range : undefined}
+            xFormat={hourly ? "raw" : "date"}
             kind="number"
             series={[
               { name: "Sessions", color: "var(--s1)", values: days.map((d) => d.sessions), area: true },

@@ -179,28 +179,40 @@ export function compareKpis(data: DashboardData, f: Filters, opts: { now?: numbe
   return { current, previous: kpis(partial, f, { from: yesterday, to: yesterday }), sameTime: true };
 }
 
-/** Charts need a few days of context: short ranges are shown as the last `min` days ending on the range's last day. */
-export function chartRange(r: DateRange, min = 14): DateRange {
-  return daysIn(r).length >= min ? r : { from: addDays(r.to, -(min - 1)), to: r.to };
-}
+export type TimePoint = { label: string; revenue: number | null; paidRevenue: number | null; orders: number | null; spend: number | null };
+export type Timeline = { unit: "day" | "hour"; points: TimePoint[] };
 
-export type HourPoint = { hour: number; revenue: number | null; previous: number };
+const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "am" : "pm"}`;
 
 /**
- * Running revenue through a day, hour by hour (store time), next to the day before. Hours that
- * haven't happened yet are null for the current day.
+ * The points every chart plots, strictly inside the selected range: one per day, or for a single
+ * day one per hour (store time). Hours that haven't happened yet are null. Hourly ad spend comes from
+ * `hourlySpend` (the platforms report it separately); without it, hourly spend is null.
  */
-export function hourlyRevenue(data: DashboardData, f: Pick<Filters, "model" | "platform">, day: string, now?: number): HourPoint[] {
-  const cum = (d: string) => {
-    const by = new Array(24).fill(0) as number[];
-    for (const o of creditedTo(ordersIn(data, { from: d, to: d }), f.model, f.platform)) by[Math.min(23, Math.floor(storeHours(o.createdAt)))] += o.revenue;
-    for (let h = 1; h < 24; h++) by[h] += by[h - 1];
-    return by.map((v) => Math.round(v * 100) / 100);
+export function timeline(data: DashboardData, f: Filters, opts: { now?: number; hourlySpend?: (number | null)[] | null } = {}): Timeline {
+  if (f.range.from !== f.range.to) {
+    return {
+      unit: "day",
+      points: daily(data, f).map((d) => ({ label: d.date, revenue: d.revenue, paidRevenue: d.paidRevenue, orders: d.orders, spend: d.spend })),
+    };
+  }
+  const day = f.range.to;
+  const lastHour = opts.now !== undefined && storeDay(opts.now) === day ? Math.floor(storeHours(opts.now)) : 23;
+  const pts = Array.from({ length: 24 }, (_, h) => ({ label: hourLabel(h), revenue: 0, paidRevenue: 0, orders: 0 }));
+  for (const o of creditedTo(ordersIn(data, f.range), f.model, f.platform)) {
+    const p = pts[Math.min(23, Math.floor(storeHours(o.createdAt)))];
+    p.revenue += o.revenue;
+    p.orders += 1;
+    if (o.touches[f.model].platform) p.paidRevenue += o.revenue;
+  }
+  return {
+    unit: "hour",
+    points: pts.map((p, h) =>
+      h > lastHour
+        ? { label: p.label, revenue: null, paidRevenue: null, orders: null, spend: null }
+        : { label: p.label, revenue: round2(p.revenue), paidRevenue: round2(p.paidRevenue), orders: p.orders, spend: opts.hourlySpend ? (opts.hourlySpend[h] ?? 0) : null },
+    ),
   };
-  const today = cum(day);
-  const before = cum(addDays(day, -1));
-  const lastHour = now !== undefined && storeDay(now) === day ? Math.floor(storeHours(now)) : 23;
-  return today.map((v, h) => ({ hour: h, revenue: h <= lastHour ? v : null, previous: before[h] }));
 }
 
 // ─── Time series ──────────────────────────────────────────────────────────────

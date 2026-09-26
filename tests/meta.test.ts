@@ -215,3 +215,17 @@ describe("parsePreviewIframe", async () => {
     expect(parsePreviewIframe('<iframe src="https://www.facebook.com/x">')).toMatchObject({ width: 335, height: 560 });
   });
 });
+
+describe("parseHourlySpend", async () => {
+  const { parseHourlySpend } = await import("@/lib/meta");
+  it("turns Meta's hourly rows into 24 values", () => {
+    const h = parseHourlySpend([
+      { spend: "4.07", hourly_stats_aggregated_by_advertiser_time_zone: "00:00:00 - 00:59:59" },
+      { spend: "3.18", hourly_stats_aggregated_by_advertiser_time_zone: "01:00:00 - 01:59:59" },
+      { spend: "2", hourly_stats_aggregated_by_advertiser_time_zone: "23:00:00 - 23:59:59" },
+      { spend: "9", hourly_stats_aggregated_by_advertiser_time_zone: "garbage" },
+    ]);
+    expect(h).toHaveLength(24);
+    expect([h[0], h[1], h[2], h[23]]).toEqual([4.07, 3.18, 0, 2]);
+  });
+});

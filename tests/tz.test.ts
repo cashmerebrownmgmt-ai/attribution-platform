@@ -59,7 +59,8 @@ describe("Today's revenue", () => {
 });
 
 describe("charts and today's comparison", async () => {
-  const { chartRange, compareKpis, hourlyRevenue } = await import("@/lib/metrics/compute");
+  const { compareKpis, timeline } = await import("@/lib/metrics/compute");
+  const ins = (date: string, spend: number) => ({ platform: "meta", adId: "a", date, spend, impressions: 1, clicks: 1, platformConversions: null, platformRevenue: null });
   const direct: Touch = { channel: "direct", platform: null, campaignId: null, adId: null };
   let n = 100;
   const order = (createdAt: string, revenue: number): OrderFact => ({
@@ -68,9 +69,11 @@ describe("charts and today's comparison", async () => {
   });
   const f = { model: "last_non_direct" as const, platform: "all" as const };
 
-  it("gives short ranges two weeks of chart context", () => {
-    expect(chartRange({ from: "2026-09-25", to: "2026-09-25" })).toEqual({ from: "2026-09-12", to: "2026-09-25" });
-    expect(chartRange({ from: "2026-08-27", to: "2026-09-25" })).toEqual({ from: "2026-08-27", to: "2026-09-25" });
+  it("charts only the selected range: by day, or by hour for one day", () => {
+    const data = { orders: [order("2026-09-24T13:00:00Z", 20)], insights: [ins("2026-09-24", 5)], adSync: [] } as unknown as DashboardData;
+    const days = timeline(data, { ...f, range: { from: "2026-09-23", to: "2026-09-24" } });
+    expect(days.unit).toBe("day");
+    expect(days.points.map((p) => [p.label, p.revenue, p.spend])).toEqual([["2026-09-23", 0, 0], ["2026-09-24", 20, 5]]);
   });
 
   it("compares today with yesterday up to the same time", () => {
@@ -89,14 +92,19 @@ describe("charts and today's comparison", async () => {
     expect(plain.current.revenue).toBe(520);
   });
 
-  it("builds running revenue by Eastern hour, stopping at the current hour", () => {
+  it("builds hourly points in Eastern time, empty for hours still to come", () => {
     const data = { orders: [order("2026-09-25T13:10:00Z", 30), order("2026-09-25T15:30:00Z", 10), order("2026-09-24T05:00:00Z", 7)], insights: [] } as unknown as DashboardData;
-    const h = hourlyRevenue(data, f, "2026-09-25", Date.parse("2026-09-25T16:00:00Z"));
-    expect(h[8].revenue).toBe(0); // 8am
-    expect(h[9].revenue).toBe(30); // 9:10am
-    expect(h[11].revenue).toBe(40); // 11:30am
-    expect(h[12].revenue).toBe(40); // noon (now)
-    expect(h[13].revenue).toBeNull(); // the future
-    expect(h[1].previous).toBe(7); // 1am yesterday
+    const spend = Array.from({ length: 24 }, (_, h) => h);
+    const t = timeline(data, { ...f, range: { from: "2026-09-25", to: "2026-09-25" } }, { now: Date.parse("2026-09-25T16:00:00Z"), hourlySpend: spend });
+    expect(t.unit).toBe("hour");
+    expect(t.points).toHaveLength(24);
+    expect(t.points[9]).toEqual({ label: "9am", revenue: 30, paidRevenue: 0, orders: 1, spend: 9 });
+    expect(t.points[11].revenue).toBe(10);
+    expect(t.points[12]).toMatchObject({ label: "12pm", revenue: 0 });
+    expect(t.points[13]).toEqual({ label: "1pm", revenue: null, paidRevenue: null, orders: null, spend: null });
+    expect(t.points[1].revenue).toBe(0); // the day before isn't mixed in
+    const noSpend = timeline(data, { ...f, range: { from: "2026-09-24", to: "2026-09-24" } });
+    expect(noSpend.points[1]).toMatchObject({ revenue: 7, spend: null });
   });
+
 });
