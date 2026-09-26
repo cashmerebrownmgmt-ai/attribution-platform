@@ -56,7 +56,7 @@ function TopList({ title, items, empty }: { title: string; items: { label: strin
 function Visitor({ v, now, mode }: { v: LiveSession; now: number; mode: "live" | "demo" }) {
   const stageClass = v.checkout === "purchased" ? s.goodText : v.checkout !== "none" ? s.warnText : s.muted;
   return (
-    <details className={`${s.liveRow} ${v.active ? "" : s.liveRowIdle}`}>
+    <details className={`${s.liveRow} ${v.active ? "" : s.liveRowIdle} ${v.checkout === "purchased" ? s.liveRowBought : ""}`}>
       <summary>
         <span className={s.liveWho}>
           <span className={s.liveFlag} aria-hidden="true">{flag(v.location.country)}</span>
@@ -75,7 +75,15 @@ function Visitor({ v, now, mode }: { v: LiveSession; now: number; mode: "live" |
           {v.onLandingPage && <span className={s.chip}>Landing page · {v.site}</span>}
           <span className={s.liveLoc}>{v.currentTitle || v.currentPath || "—"}</span>
           <span className={`${s.liveMeta} ${stageClass}`}>
-            {v.checkout === "none" && v.activity.some((a) => a.kind === "cart") ? "Clicked buy → heading to checkout" : STAGE_LABELS[v.checkout]}
+            {v.checkout === "purchased" ? (
+              <span className={s.purchasedBadge} role="status">
+                ✓ Purchased
+              </span>
+            ) : v.checkout === "none" && v.activity.some((a) => a.kind === "cart") ? (
+              "Clicked buy → heading to checkout"
+            ) : (
+              STAGE_LABELS[v.checkout]
+            )}
             {v.checkout !== "none" && v.landingSite && v.landingSite !== v.site ? ` · came from ${v.landingSite}` : ""}
           </span>
         </span>
