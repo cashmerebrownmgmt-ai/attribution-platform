@@ -2,7 +2,7 @@
  * Alerts: the few things worth an email. Broken tracking (from the health checks), orders that stop,
  * ads spending without sales, and paid returns below break-even. Pure; the cron route sends them.
  */
-import { addDays, dayOf } from "./metrics/compute";
+import { addDays, dayOf, spendByDay } from "./metrics/compute";
 import { healthChecks } from "./metrics/health";
 import type { DashboardData } from "./metrics/types";
 
@@ -65,7 +65,7 @@ export function alertsFor(data: DashboardData, now = Date.parse(data.generatedAt
 
   // 4. Paid return below break-even over the last 7 days.
   const weekFrom = addDays(today, -7);
-  const adSpend = data.insights.filter((i) => i.date >= weekFrom && i.date < today).reduce((t, i) => t + i.spend, 0);
+  const adSpend = [...spendByDay(data, { from: weekFrom, to: addDays(today, -1) }).values()].reduce((t, v) => t + v, 0);
   const adRevenue = live.filter((o) => dayOf(o.createdAt) >= weekFrom && dayOf(o.createdAt) < today && o.touches.last_non_direct.platform).reduce((t, o) => t + o.revenue, 0);
   const breakeven = data.settings.breakevenRoas;
   if (breakeven && adSpend >= 100 && adRevenue / adSpend < breakeven) {

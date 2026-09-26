@@ -59,6 +59,28 @@ export function insightsIn(data: DashboardData, r: DateRange, platform: Filters[
   return data.insights.filter((i) => inRange(i.date, r) && (platform === "all" || i.platform === platform));
 }
 
+/**
+ * Ad spend per day. Uses each ad platform's own account-level total where we have it (that is what
+ * Ads Manager shows, and it includes ads the API no longer lists), else the sum of the ad-level rows.
+ */
+export function spendByDay(data: DashboardData, r: DateRange, platform: Filters["platform"] = "all"): Map<string, number> {
+  const byPlatform = new Map<string, Map<string, number>>();
+  for (const i of insightsIn(data, r, platform)) {
+    const m = byPlatform.get(i.platform) ?? new Map<string, number>();
+    m.set(i.date, (m.get(i.date) ?? 0) + i.spend);
+    byPlatform.set(i.platform, m);
+  }
+  for (const sync of data.adSync ?? []) {
+    if (platform !== "all" && sync.platform !== platform) continue;
+    const m = byPlatform.get(sync.platform) ?? new Map<string, number>();
+    for (const d of sync.accountDaily) if (inRange(d.date, r)) m.set(d.date, d.spend);
+    byPlatform.set(sync.platform, m);
+  }
+  const out = new Map<string, number>();
+  for (const m of byPlatform.values()) for (const [d, v] of m) out.set(d, (out.get(d) ?? 0) + v);
+  return out;
+}
+
 /** Orders whose credit (under the model) went to the platform filter, or all orders. */
 function creditedTo(orders: OrderFact[], model: Model, platform: Filters["platform"]): OrderFact[] {
   return platform === "all" ? orders : orders.filter((o) => o.touches[model].platform === platform);
@@ -100,7 +122,7 @@ export function kpis(data: DashboardData, f: Pick<Filters, "model" | "platform">
 
   const revenue = sum(orders, (o) => o.revenue);
   const newOrders = orders.filter((o) => o.isNew);
-  const spend = sum(ins, (i) => i.spend);
+  const spend = [...spendByDay(data, r, f.platform).values()].reduce((t, v) => t + v, 0);
   const paidRevenue = sum(paid, (o) => o.revenue);
   const paidNewRevenue = sum(paid.filter((o) => o.isNew), (o) => o.revenue);
   const impressions = sum(ins, (i) => i.impressions);
@@ -152,6 +174,7 @@ export function compareKpis(data: DashboardData, f: Filters, opts: { now?: numbe
     ...data,
     orders: data.orders.filter((o) => dayOf(o.createdAt) !== yesterday || Date.parse(o.createdAt) <= cutoff),
     insights: data.insights.map((i) => (i.date === yesterday ? { ...i, spend: i.spend * share, impressions: Math.round(i.impressions * share), clicks: Math.round(i.clicks * share), platformConversions: i.platformConversions === null ? null : i.platformConversions * share, platformRevenue: i.platformRevenue === null ? null : i.platformRevenue * share } : i)),
+    adSync: data.adSync?.map((sync) => ({ ...sync, accountDaily: sync.accountDaily.map((d) => (d.date === yesterday ? { ...d, spend: d.spend * share } : d)) })),
   };
   return { current, previous: kpis(partial, f, { from: yesterday, to: yesterday }), sameTime: true };
 }
@@ -202,9 +225,9 @@ export function daily(data: DashboardData, f: Filters): DayPoint[] {
     p.orders += 1;
     if (o.touches[f.model].platform) p.paidRevenue += o.revenue;
   }
-  for (const i of insightsIn(data, f.range, f.platform)) {
-    const p = points.get(i.date);
-    if (p) p.spend += i.spend;
+  for (const [d, v] of spendByDay(data, f.range, f.platform)) {
+    const p = points.get(d);
+    if (p) p.spend += v;
   }
   return [...points.values()].map((p) => ({
     ...p,

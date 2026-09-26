@@ -62,7 +62,7 @@ async function loadLive(): Promise<DashboardData> {
   const since = new Date(Date.now() - 400 * 86_400_000).toISOString();
   const sinceDay = since.slice(0, 10);
 
-  const [orders, attributions, campaigns, adGroups, ads, insights, settingsRow, health, customers, items] = await Promise.all([
+  const [orders, attributions, campaigns, adGroups, ads, insights, settingsRow, health, customers, items, accounts, accountDaily] = await Promise.all([
     fetchAll<OrderFactRow>(
       (a, b) => db().from("order_facts").select("id, name, created_at, revenue, cancelled_at, stitch_method, is_new_customer").gte("created_at", since).order("created_at").range(a, b),
       "order_facts",
@@ -94,6 +94,11 @@ async function loadLive(): Promise<DashboardData> {
       (a, b) => db().from("order_items").select("order_id, product_id, title, quantity, price").order("order_id").order("line_id").range(a, b),
       "order_items",
     ),
+    db().from("ad_accounts").select("platform, id, synced_at"),
+    fetchAll<{ platform: string; date: string; spend: string | number }>(
+      (a, b) => db().from("ad_account_daily").select("platform, date, spend").gte("date", sinceDay).order("date").range(a, b),
+      "ad_account_daily",
+    ).catch(() => []), // only a cross-check: never let it take the dashboard down
   ]);
 
   const customerOf = new Map(customers.map((c) => [c.id, c.customer_id ? `c:${c.customer_id}` : c.email_hash ? `e:${c.email_hash}` : null]));
@@ -216,5 +221,10 @@ async function loadLive(): Promise<DashboardData> {
       platformRevenue: i.platform_revenue != null ? Number(i.platform_revenue) : null,
     })),
     health: healthData,
+    adSync: [...new Set((accounts.data ?? []).map((a) => a.platform as Platform))].map((platform) => ({
+      platform,
+      syncedAt: (accounts.data ?? []).filter((a) => a.platform === platform).map((a) => a.synced_at as string | null).sort().at(-1) ?? null,
+      accountDaily: accountDaily.filter((d) => d.platform === platform).map((d) => ({ date: String(d.date), spend: Number(d.spend) })),
+    })),
   };
 }

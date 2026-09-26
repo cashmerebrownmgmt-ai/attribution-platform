@@ -2,7 +2,7 @@ import { CHANNEL_LABELS } from "@/lib/debug";
 import { PLATFORM_LABELS } from "@/lib/dashboard/filters";
 import { pct, roas } from "@/lib/dashboard/format";
 import { loadPage } from "@/lib/dashboard/page";
-import { byChannel, chartRange, daysIn, insightsIn, performance } from "@/lib/metrics/compute";
+import { byChannel, chartRange, daysIn, performance, spendByDay } from "@/lib/metrics/compute";
 import { AD_PLATFORMS } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
 import { BarList } from "../_components/charts/BarList";
@@ -22,11 +22,8 @@ export default async function ChannelsPage({ searchParams }: PageProps<"/dashboa
   const extended = chartR.from !== f.range.from;
   const dates = daysIn(chartR);
 
-  const spendByPlatform = new Map(AD_PLATFORMS.map((p) => [p, new Map(dates.map((d) => [d, 0]))]));
-  for (const i of insightsIn(data, chartR, f.platform)) {
-    const m = spendByPlatform.get(i.platform);
-    if (m?.has(i.date)) m.set(i.date, (m.get(i.date) ?? 0) + i.spend);
-  }
+  // Same totals as Ads Manager: account-level spend where available (see spendByDay).
+  const spendByPlatform = new Map(AD_PLATFORMS.filter((p) => f.platform === "all" || p === f.platform).map((p) => [p, spendByDay(data, chartR, p)]));
   const activePlatforms = AD_PLATFORMS.filter((p) => [...(spendByPlatform.get(p)?.values() ?? [])].some((v) => v > 0));
 
   return (

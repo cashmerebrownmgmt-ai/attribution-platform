@@ -139,3 +139,15 @@ describe("daily_reports", () => {
     expect(p.rows).toHaveLength(0);
   });
 });
+
+describe("ad_account_daily", () => {
+  it("stores one total per account and day, with RLS on", async () => {
+    await pg.exec(`insert into ad_accounts (platform, id, name, synced_at) values ('meta', '42', 'CB', now())`);
+    await pg.exec(`insert into ad_account_daily (platform, account_id, date, spend) values ('meta', '42', '2026-09-25', 97.99)`);
+    await pg.exec(`insert into ad_account_daily (platform, account_id, date, spend) values ('meta', '42', '2026-09-25', 101.50) on conflict (platform, account_id, date) do update set spend = excluded.spend`);
+    const { rows } = await pg.query("select spend::text from ad_account_daily");
+    expect(rows).toEqual([{ spend: "101.50" }]);
+    const rls = await pg.query("select 1 from pg_class where relname = 'ad_account_daily' and relrowsecurity");
+    expect(rls.rows).toHaveLength(1);
+  });
+});

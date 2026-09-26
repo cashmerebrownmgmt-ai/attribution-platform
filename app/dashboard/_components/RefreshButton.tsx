@@ -6,7 +6,7 @@ import s from "../dashboard.module.css";
 
 const NOTES: Record<RefreshResult["meta"], string> = {
   synced: "Shopify and Meta up to date",
-  recent: "Up to date (Meta synced in the last 5 min)",
+  recent: "Up to date (Meta pulled in the last minute)",
   not_connected: "Shopify up to date",
   failed: "Shopify up to date · Meta sync failed",
   demo: "Demo data refreshed",

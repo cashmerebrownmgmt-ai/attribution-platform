@@ -108,6 +108,9 @@ export type HealthData = {
   orders7d: number;
 };
 
+/** Per ad platform: when it was last pulled, and its own account-level spend per day (for cross-checks). */
+export type AdSync = { platform: Platform; syncedAt: string | null; accountDaily: { date: string; spend: number }[] };
+
 export type DashboardData = {
   mode: "live" | "demo";
   generatedAt: string;
@@ -118,4 +121,5 @@ export type DashboardData = {
   ads: Ad[];
   insights: Insight[];
   health: HealthData;
+  adSync?: AdSync[];
 };

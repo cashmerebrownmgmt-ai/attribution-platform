@@ -155,20 +155,27 @@ describe("syncMeta", () => {
             ],
           },
         },
+        // Account level (what Ads Manager shows for the whole account).
+        { body: { data: [{ date_start: "2026-09-23", spend: "10" }, { date_start: "2026-09-24", spend: "17.5" }] } },
       ],
     });
     const written: Record<string, unknown[]> = {};
     const put = (k: string) => async (rows: unknown) => void (written[k] = Array.isArray(rows) ? rows : [rows]);
-    const store: MetaStore = { upsertAccount: put("account"), upsertCampaigns: put("campaigns"), upsertAdGroups: put("adGroups"), upsertAds: put("ads"), upsertInsights: put("insights") };
+    const store: MetaStore = { upsertAccount: put("account"), upsertCampaigns: put("campaigns"), upsertAdGroups: put("adGroups"), upsertAds: put("ads"), upsertInsights: put("insights"), upsertAccountDaily: put("accountDaily") };
     return { client: metaClient({ token: "T", fetch: f }), store, written };
   }
 
   it("writes the hierarchy parents-first and skips rows whose parent is missing", async () => {
     const { client, store, written } = setup();
     const s = await syncMeta({ client, store, now: () => new Date(NOW) }, { accountId: "act_42", since: "2026-09-23", until: "2026-09-24" });
-    expect(s).toEqual({ account: "CB - Back Up", campaigns: 1, adSets: 1, ads: 1, insightRows: 2, skippedInsights: 1, spend: 25.5, since: "2026-09-23", until: "2026-09-24", dryRun: false });
-    expect(Object.keys(written)).toEqual(["account", "campaigns", "adGroups", "ads", "insights"]);
-    expect(written.account).toEqual([{ platform: "meta", id: "42", name: "CB - Back Up", currency: "USD", timezone: "America/New_York" }]);
+    // The deleted ad's $2 is in Meta's account total but has no ad to attach to; the gap is reported.
+    expect(s).toEqual({ account: "CB - Back Up", campaigns: 1, adSets: 1, ads: 1, insightRows: 2, skippedInsights: 1, spend: 25.5, accountSpend: 27.5, since: "2026-09-23", until: "2026-09-24", dryRun: false });
+    expect(Object.keys(written)).toEqual(["account", "campaigns", "adGroups", "ads", "insights", "accountDaily"]);
+    expect(written.account).toEqual([{ platform: "meta", id: "42", name: "CB - Back Up", currency: "USD", timezone: "America/New_York", synced_at: NOW }]);
+    expect(written.accountDaily).toEqual([
+      { platform: "meta", account_id: "42", date: "2026-09-23", spend: 10, updated_at: NOW },
+      { platform: "meta", account_id: "42", date: "2026-09-24", spend: 17.5, updated_at: NOW },
+    ]);
   });
 
   it("writes nothing on a dry run, and rejects bad dates", async () => {

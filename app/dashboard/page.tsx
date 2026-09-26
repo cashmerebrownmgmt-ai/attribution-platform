@@ -11,6 +11,7 @@ import { DataTable } from "./_components/DataTable";
 import { Inspector, Preview } from "./_components/Inspector";
 import { Card, Filters, Kpi, PageHead, PLATFORM_COLORS, TableToggle } from "./_components/ui";
 import { longDay, reportDayFor } from "@/lib/daily-report";
+import { STORE_TZ, storeDay } from "@/lib/tz";
 import { inspectHref } from "@/lib/dashboard/inspect";
 
 /** Rolling mean over the last `n` points (smooths daily ROAS). */
@@ -45,6 +46,10 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
   const t = data.settings;
   const revDelta = delta(k.revenue, p.revenue);
   const noAdData = data.insights.length === 0;
+  const metaSynced = data.adSync?.find((x) => x.platform === "meta")?.syncedAt ?? null;
+  const metaAsOf = metaSynced
+    ? new Date(metaSynced).toLocaleString("en-US", { timeZone: STORE_TZ, ...(storeDay(metaSynced) === storeDay(now) ? {} : { month: "short", day: "numeric" }), hour: "numeric", minute: "2-digit" })
+    : null;
 
   const topAds = ads.filter((a) => a.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 6);
   const minSpend = Math.max(50, k.spend * 0.02);
@@ -87,7 +92,7 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
       </div>
 
       <div className={s.kpiGrid}>
-        <Kpi label="Ad spend" value={money(k.spend, cur)} current={k.spend} previous={p.spend} vs={vs} neutral trend={days.map((d) => d.spend)} />
+        <Kpi label="Ad spend" value={money(k.spend, cur)} current={k.spend} previous={p.spend} vs={vs} neutral trend={days.map((d) => d.spend)} target={metaAsOf ? `Meta as of ${metaAsOf}` : undefined} />
         <Kpi
           label="ROAS (paid)"
           value={roas(k.roas)}

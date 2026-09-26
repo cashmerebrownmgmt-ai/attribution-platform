@@ -105,6 +105,33 @@ export function healthChecks(data: DashboardData, now = Date.parse(data.generate
     );
   }
 
+  // 7. Ad spend matches the ad platform's own account totals, and was pulled recently.
+  for (const sync of data.adSync ?? []) {
+    const name = `${sync.platform === "meta" ? "Meta" : sync.platform} spend matches Ads Manager`;
+    const recent = sync.accountDaily.filter((d) => d.date >= addDays(dayOf(data.generatedAt), -6));
+    if (recent.length === 0) continue;
+    const ours = new Map<string, number>();
+    for (const i of data.insights) if (i.platform === sync.platform) ours.set(i.date, (ours.get(i.date) ?? 0) + i.spend);
+    const off = recent.filter((d) => Math.abs((ours.get(d.date) ?? 0) - d.spend) > 0.05);
+    const total = recent.reduce((t, d) => t + d.spend, 0);
+    const age = minutesSince(sync.syncedAt, now);
+    const asOf = age === null ? "" : ` · updated ${ago(age)}`;
+    checks.push(
+      off.length === 0
+        ? { id: `match-${sync.platform}`, name, level: "ok", detail: `Last 7 days match to the cent ($${total.toFixed(2)})${asOf}.` }
+        : {
+            id: `match-${sync.platform}`,
+            name,
+            level: "warn",
+            detail: `${off.length} day${off.length > 1 ? "s" : ""} differ: ${off
+              .slice(0, 3)
+              .map((d) => `${d.date} dashboard $${(ours.get(d.date) ?? 0).toFixed(2)} vs Ads Manager $${d.spend.toFixed(2)}`)
+              .join("; ")}${asOf}.`,
+            fix: "Click Refresh. If it persists, spend is on ads the platform no longer lists (e.g. deleted ads); totals still use the account figure.",
+          },
+    );
+  }
+
   return checks;
 }
 

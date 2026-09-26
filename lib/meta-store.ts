@@ -15,5 +15,6 @@ export function makeMetaStore(db: () => SupabaseClient): MetaStore {
     upsertAdGroups: (rows) => upsert("ad_groups", rows, "platform,id"),
     upsertAds: (rows) => upsert("ads", rows, "platform,id"),
     upsertInsights: (rows) => upsert("ad_insights_daily", rows, "platform,ad_id,date"),
+    upsertAccountDaily: (rows) => upsert("ad_account_daily", rows, "platform,account_id,date"),
   };
 }

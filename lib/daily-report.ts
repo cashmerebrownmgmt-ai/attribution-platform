@@ -7,7 +7,7 @@ import { alertsFor, type Alert } from "./alerts";
 import { STORE_TZ } from "./tz";
 import { behaviorTips, type Tip } from "./behavior-insights";
 import { CHANNEL_LABELS } from "./debug";
-import { addDays, ctrDecay, fatigue, performance, ratio } from "./metrics/compute";
+import { addDays, ctrDecay, fatigue, performance, ratio, spendByDay } from "./metrics/compute";
 import { healthChecks } from "./metrics/health";
 import { adSignal, type Verdict } from "./metrics/signals";
 import type { DashboardData, OrderFact } from "./metrics/types";
@@ -61,7 +61,7 @@ function statsFor(day: string, ordersByDay: Map<string, OrderFact[]>, sessionsBy
     newCustomers: os.filter((o) => o.isNew).length,
     sessions: ss.length,
     conversions: ss.filter((s) => s.completed_checkout).length,
-    adSpend: ins.reduce((t, i) => t + i.spend, 0),
+    adSpend: [...spendByDay(data, { from: day, to: day }).values()].reduce((t, v) => t + v, 0),
     adRevenue: os.filter((o) => o.touches.last_non_direct.platform).reduce((t, o) => t + o.revenue, 0),
     platformRevenue: ins.reduce((t, i) => t + (i.platformRevenue ?? 0), 0),
   };

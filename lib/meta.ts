@@ -62,6 +62,8 @@ const adSchema = z.object({
   creative: creativeSchema.nullish(),
 });
 
+const accountSpendSchema = z.object({ date_start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), spend: z.union([z.string(), z.number()]).nullish() });
+
 const actionList = z.array(z.object({ action_type: z.string(), value: z.union([z.string(), z.number()]) }).passthrough()).nullish();
 
 const insightSchema = z.object({
@@ -84,7 +86,8 @@ export type MetaInsight = z.infer<typeof insightSchema>;
 
 // ─── Rows for our tables ─────────────────────────────────────────────────────
 
-export type AccountRow = { platform: "meta"; id: string; name: string | null; currency: string | null; timezone: string | null };
+export type AccountRow = { platform: "meta"; id: string; name: string | null; currency: string | null; timezone: string | null; synced_at?: string };
+export type AccountDailyRow = { platform: "meta"; account_id: string; date: string; spend: number; updated_at: string };
 export type CampaignRow = { platform: "meta"; id: string; account_id: string; name: string | null; status: string; objective: string | null; daily_budget: number | null; updated_at: string };
 export type AdGroupRow = { platform: "meta"; id: string; campaign_id: string; name: string | null; status: string; daily_budget: number | null; updated_at: string };
 export type AdRow = {
@@ -330,9 +333,23 @@ export type MetaStore = {
   upsertAdGroups(rows: AdGroupRow[]): Promise<void>;
   upsertAds(rows: AdRow[]): Promise<void>;
   upsertInsights(rows: InsightRow[]): Promise<void>;
+  upsertAccountDaily(rows: AccountDailyRow[]): Promise<void>;
 };
 
-export type SyncSummary = { account: string; campaigns: number; adSets: number; ads: number; insightRows: number; skippedInsights: number; spend: number; since: string; until: string; dryRun: boolean };
+export type SyncSummary = {
+  account: string;
+  campaigns: number;
+  adSets: number;
+  ads: number;
+  insightRows: number;
+  skippedInsights: number;
+  spend: number;
+  /** Meta's own account-level total for the same days; should equal `spend`. */
+  accountSpend: number;
+  since: string;
+  until: string;
+  dryRun: boolean;
+};
 
 const AD_FIELDS = [
   "id",
@@ -383,6 +400,13 @@ export async function syncMeta(deps: { client: MetaClient; store: MetaStore; now
     for (const r of rows) insights.push(mapInsight(r, now));
   }
 
+  // Meta's own account-level spend per day, to check the ad-level rows add up to what Ads Manager shows.
+  const accountDaily: AccountDailyRow[] = [];
+  for (const w of dateWindows(since, until, 31)) {
+    const rows = await client.getAll(`${act}/insights`, { level: "account", time_increment: "1", time_range: JSON.stringify(w), fields: "spend,date_start", limit: "100" }, accountSpendSchema);
+    for (const r of rows) accountDaily.push({ platform: "meta", account_id: account.id, date: r.date_start, spend: money(r.spend), updated_at: now });
+  }
+
   // Keep the hierarchy consistent: children whose parent wasn't returned are skipped, not guessed.
   const campaignIds = new Set(campaigns.map((c) => c.id));
   const keptSets = adSets.filter((s) => campaignIds.has(s.campaign_id));
@@ -397,6 +421,9 @@ export async function syncMeta(deps: { client: MetaClient; store: MetaStore; now
     await store.upsertAdGroups(keptSets);
     await store.upsertAds(keptAds);
     await store.upsertInsights(keptInsights);
+    await store.upsertAccountDaily(accountDaily);
+    // Stamped last, so "synced at" only moves once everything above is saved.
+    await store.upsertAccount({ ...account, synced_at: now });
   }
 
   return {
@@ -407,6 +434,7 @@ export async function syncMeta(deps: { client: MetaClient; store: MetaStore; now
     insightRows: keptInsights.length,
     skippedInsights: insights.length - keptInsights.length,
     spend: Math.round(keptInsights.reduce((t, i) => t + i.spend, 0) * 100) / 100,
+    accountSpend: Math.round(accountDaily.reduce((t, d) => t + d.spend, 0) * 100) / 100,
     since,
     until,
     dryRun: !!opts.dryRun,
