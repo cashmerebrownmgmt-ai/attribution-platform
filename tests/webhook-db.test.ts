@@ -193,3 +193,14 @@ describe("order_journeys", () => {
     expect((await pg.query("select 1 from pg_class where relname = 'order_journeys' and relrowsecurity")).rows).toHaveLength(1);
   });
 });
+
+describe("incrementality_tests", () => {
+  it("validates plans and keeps RLS on", async () => {
+    const { rows } = await pg.query<{ id: string }>(`insert into incrementality_tests (name, design, cut_share, start_date, end_date) values ('Meta pause', 'pause', 1, '2026-10-01', '2026-10-21') returning id`);
+    expect(rows[0].id).toMatch(/^[0-9a-f-]{36}$/);
+    await expect(pg.query(`insert into incrementality_tests (name, design, cut_share, start_date, end_date) values ('x', 'pause', 1, '2026-10-21', '2026-10-01')`)).rejects.toThrow();
+    await expect(pg.query(`insert into incrementality_tests (name, design, cut_share, start_date, end_date) values ('x', 'stop', 1, '2026-10-01', '2026-10-02')`)).rejects.toThrow();
+    await expect(pg.query(`insert into incrementality_tests (name, design, cut_share, start_date, end_date) values ('x', 'cut', 0, '2026-10-01', '2026-10-02')`)).rejects.toThrow();
+    expect((await pg.query("select 1 from pg_class where relname = 'incrementality_tests' and relrowsecurity")).rows).toHaveLength(1);
+  });
+});
