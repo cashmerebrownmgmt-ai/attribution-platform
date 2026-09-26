@@ -140,6 +140,7 @@ describe("cross-domain helpers", async () => {
     expect(isStoreUrl("https://cashmerebrown.com/cart/1:1", ["cashmerebrown.com"])).toBe(true);
     expect(isStoreUrl("https://www.cashmerebrown.com/", ["cashmerebrown.com"])).toBe(true);
     expect(isStoreUrl("https://evilcashmerebrown.com/", ["cashmerebrown.com"])).toBe(false);
+    expect(isStoreUrl("https://lowendbundle.cashmerebrown.com/", ["cashmerebrown.com"])).toBe(false); // a landing page, not the store
     expect(isStoreUrl("mailto:x@cashmerebrown.com", ["cashmerebrown.com"])).toBe(false);
     expect(isStoreUrl("/cart/1:1", ["cashmerebrown.com"], "https://lp.lovable.app/")).toBe(false);
   });

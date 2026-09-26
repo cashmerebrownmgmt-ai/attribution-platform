@@ -217,6 +217,16 @@ describe("landing pages on other domains", () => {
     expect(opened[1]).toBe("https://example.org/page");
   });
 
+  it("works on a landing page hosted on a subdomain of the store's domain", () => {
+    window.history.replaceState(null, "", "/?utm_source=facebook&utm_content=a1");
+    const opened: string[] = [];
+    window.open = ((u?: string | URL) => (opened.push(String(u)), null)) as typeof window.open;
+    // jsdom's host is localhost; treat the store as a different host, as for lowendbundle.cashmerebrown.com.
+    trackLanding(window, ENDPOINT, ["cashmerebrown.com"]);
+    window.open("https://cashmerebrown.com/cart/1:1");
+    expect(new URL(opened[0]).searchParams.get("attributes[_ap_vid]")).toBe(V());
+  });
+
   it("keeps the session's ad params on later pages without UTMs", () => {
     trackLanding(window, ENDPOINT, STORE);
     window.history.replaceState(null, "", "/faq");

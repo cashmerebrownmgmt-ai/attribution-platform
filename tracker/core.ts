@@ -147,8 +147,10 @@ export function isStoreUrl(url: string, storeHosts: string[], base?: string): bo
     return false;
   }
   if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  // The store's own host (with or without www) only: landing pages can live on subdomains of the
+  // store's domain (e.g. lowendbundle.cashmerebrown.com) and must not count as the store.
   const h = u.hostname.toLowerCase().replace(/^www\./, "");
-  return storeHosts.some((s) => h === s || h.endsWith(`.${s}`));
+  return storeHosts.includes(h);
 }
 
 /** A Shopify cart permalink (/cart/<variant>:<qty>[,…]) goes straight to checkout. */
