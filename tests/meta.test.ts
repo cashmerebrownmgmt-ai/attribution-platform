@@ -196,3 +196,22 @@ describe("dateWindows", () => {
     expect(dateWindows("2026-09-01", "2026-09-01", 7)).toEqual([{ since: "2026-09-01", until: "2026-09-01" }]);
   });
 });
+
+describe("parsePreviewIframe", async () => {
+  const { parsePreviewIframe } = await import("@/lib/meta");
+  it("extracts the preview URL and size", () => {
+    expect(parsePreviewIframe('<iframe src="https://business.facebook.com/ads/api/preview_iframe.php?d=AQ1&amp;t=AQ2" width="335" height="450" scrolling="yes"></iframe>')).toEqual({
+      src: "https://business.facebook.com/ads/api/preview_iframe.php?d=AQ1&t=AQ2",
+      width: 335,
+      height: 450,
+    });
+  });
+  it("only accepts https facebook.com URLs", () => {
+    expect(parsePreviewIframe('<iframe src="https://evil.example/x" width="1" height="1">')).toBeNull();
+    expect(parsePreviewIframe('<iframe src="https://facebook.com.evil.example/x">')).toBeNull();
+    expect(parsePreviewIframe('<iframe src="http://www.facebook.com/x">')).toBeNull();
+    expect(parsePreviewIframe('<iframe src="javascript:alert(1)">')).toBeNull();
+    expect(parsePreviewIframe("no iframe")).toBeNull();
+    expect(parsePreviewIframe('<iframe src="https://www.facebook.com/x">')).toMatchObject({ width: 335, height: 560 });
+  });
+});

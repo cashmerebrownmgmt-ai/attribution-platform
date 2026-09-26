@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { filterQuery, PLATFORM_LABELS } from "@/lib/dashboard/filters";
 import { money, num, pct, roas, signedPct } from "@/lib/dashboard/format";
@@ -6,6 +7,8 @@ import { ctrDecay, dayOf, fatigue, performance, type PerfRow } from "@/lib/metri
 import { adSignal, VERDICT_LABELS, type Signal, type Verdict } from "@/lib/metrics/signals";
 import type { Ad } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
+import { MetaPreview } from "../_components/MetaPreview";
+import { isPreviewFormat, PREVIEW_FORMATS, type PreviewFormat } from "@/lib/meta";
 import { ScrollLock } from "../_components/ScrollLock";
 import { AdPreview } from "../_components/AdPreview";
 import { LineChart } from "../_components/charts/LineChart";
@@ -61,7 +64,8 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
   const items = verdictFilter ? all.filter((i) => i.signal.verdict === verdictFilter) : all;
   const counts = all.reduce<Partial<Record<Verdict, number>>>((m, i) => ({ ...m, [i.signal.verdict]: (m[i.signal.verdict] ?? 0) + 1 }), {});
 
-  const base = { verdict: verdictFilter };
+  const placement = isPreviewFormat(one(params.pf)) ? (one(params.pf) as PreviewFormat) : "MOBILE_FEED_STANDARD";
+  const base = { verdict: verdictFilter, pf: placement === "MOBILE_FEED_STANDARD" ? null : placement };
   const hrefFor = (key: string | null) => `/dashboard/creatives${filterQuery(f, { ...base, ad: key })}`;
   const selIdx = items.findIndex((i) => i.row.key === one(params.ad));
   const selected = selIdx >= 0 ? items[selIdx] : null;
@@ -147,7 +151,30 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
             </div>
             <div className={s.lightboxBody}>
               <div className={s.lightboxMedia}>
-                <AdPreview ad={selected.ad} brand={brand} size="large" />
+                {mode === "live" && selected.ad.platform === "meta" ? (
+                  <>
+                    <div className={s.chips} role="tablist" aria-label="Placement" style={{ marginBottom: 10 }}>
+                      {(Object.keys(PREVIEW_FORMATS) as PreviewFormat[]).map((fmt) => (
+                        <Link
+                          key={fmt}
+                          href={`/dashboard/creatives${filterQuery(f, { ...base, pf: fmt === "MOBILE_FEED_STANDARD" ? null : fmt, ad: selected.row.key })}`}
+                          className={`${s.chip} ${fmt === placement ? s.chipOn : ""}`}
+                          scroll={false}
+                          replace
+                          role="tab"
+                          aria-selected={fmt === placement}
+                        >
+                          {PREVIEW_FORMATS[fmt]}
+                        </Link>
+                      ))}
+                    </div>
+                    <Suspense fallback={<div className={s.empty}>Loading Meta&apos;s preview…</div>}>
+                      <MetaPreview key={`${selected.ad.id}-${placement}`} adId={selected.ad.id} format={placement} fallback={<AdPreview ad={selected.ad} brand={brand} size="large" />} />
+                    </Suspense>
+                  </>
+                ) : (
+                  <AdPreview ad={selected.ad} brand={brand} size="large" />
+                )}
               </div>
               <div className={s.lightboxInfo}>
                 <div className={s.creativeName} style={{ fontSize: 15 }}>

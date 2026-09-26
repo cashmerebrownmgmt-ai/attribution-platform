@@ -440,3 +440,38 @@ export async function syncMeta(deps: { client: MetaClient; store: MetaStore; now
     dryRun: !!opts.dryRun,
   };
 }
+
+// ─── Ad previews ─────────────────────────────────────────────────────────────
+
+/** Placements Meta can render an exact preview for, with your Page name and profile picture. */
+export const PREVIEW_FORMATS = {
+  MOBILE_FEED_STANDARD: "Facebook feed",
+  INSTAGRAM_STANDARD: "Instagram feed",
+  INSTAGRAM_REELS: "Reels",
+  INSTAGRAM_STORY: "Stories",
+} as const;
+export type PreviewFormat = keyof typeof PREVIEW_FORMATS;
+export const isPreviewFormat = (v: unknown): v is PreviewFormat => typeof v === "string" && v in PREVIEW_FORMATS;
+
+export type PreviewFrame = { src: string; width: number; height: number };
+
+/**
+ * The iframe Meta's /previews endpoint returns, reduced to its src and size. Only https URLs on
+ * facebook.com are accepted, so nothing else can be embedded through this.
+ */
+export function parsePreviewIframe(body: string): PreviewFrame | null {
+  const raw = body.match(/src="([^"]+)"/)?.[1];
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw.replace(/&amp;/g, "&"));
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" || !(url.hostname === "facebook.com" || url.hostname.endsWith(".facebook.com"))) return null;
+  const size = (name: string, fallback: number) => {
+    const n = Number(body.match(new RegExp(`${name}="?(\\d+)`))?.[1]);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  };
+  return { src: url.toString(), width: size("width", 335), height: size("height", 560) };
+}

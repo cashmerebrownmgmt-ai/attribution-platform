@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { LEVEL_LABELS, type EntityInfo } from "@/lib/dashboard/entity";
@@ -5,6 +6,7 @@ import { money, num, pct, roas, signedPct } from "@/lib/dashboard/format";
 import { factors, FACTOR_LABELS, type Breakdown, type Effect, type Finding, type ResponseModel } from "@/lib/metrics/drivers";
 import { VERDICT_LABELS } from "@/lib/metrics/signals";
 import s from "../dashboard.module.css";
+import { MetaPreview } from "./MetaPreview";
 import { ScrollLock } from "./ScrollLock";
 import { AdPreview } from "./AdPreview";
 import { PLATFORM_COLORS } from "./ui";
@@ -127,7 +129,13 @@ export function BreakdownDrawer({
           {e.ad && (
             <div className={s.drawerAd}>
               <div className={s.lightboxMedia}>
-                <AdPreview ad={e.ad} brand={brand} size="large" />
+                {e.ad.platform === "meta" && !e.ad.thumbnailUrl?.startsWith("demo:") ? (
+                  <Suspense fallback={<div className={s.empty}>Loading Meta&apos;s preview…</div>}>
+                    <MetaPreview adId={e.ad.id} format="MOBILE_FEED_STANDARD" fallback={<AdPreview ad={e.ad} brand={brand} size="large" />} />
+                  </Suspense>
+                ) : (
+                  <AdPreview ad={e.ad} brand={brand} size="large" />
+                )}
               </div>
             </div>
           )}
