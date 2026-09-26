@@ -4,7 +4,7 @@
  * Records the visit (with its UTMs and click IDs), and makes every link or window.open to the
  * store carry the visitor ID and the session's ad params, so the order matches this visit.
  */
-import { CARRY_KEY, decorateStoreUrl, isCartPermalink, isStoreUrl, marketingParams, parseStoreHosts } from "./core";
+import { CARRY_KEY, decorateStoreUrl, isCartPermalink, isEditorPreview, isStoreUrl, marketingParams, parseStoreHosts } from "./core";
 import { endpointFor, pageView, reportAddToCart, safe, type Ctx, type TrackerWindow } from "./runtime";
 
 function linkToStore(c: Ctx, storeHosts: string[]): void {
@@ -49,7 +49,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   try {
     const w = window as TrackerWindow;
     const script = document.currentScript as HTMLScriptElement | null;
-    if (!w.__apTracker && script?.src) {
+    // Skip Lovable's editor previews: they're you editing the page, not visitors.
+    if (!w.__apTracker && script?.src && !isEditorPreview(w.location.hostname)) {
       w.__apTracker = true;
       trackLanding(w, endpointFor(script.src), parseStoreHosts(script.getAttribute("data-store")));
     }

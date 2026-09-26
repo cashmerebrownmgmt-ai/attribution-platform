@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isLandingSite } from "@/lib/store-hosts";
 import { formatStoreTime } from "@/lib/tz";
 import { currentMode } from "@/lib/dashboard/data";
 import { liveSummary, locationLabel, STAGE_LABELS, type LiveSession } from "@/lib/live";
@@ -70,8 +71,12 @@ function Visitor({ v, now, mode }: { v: LiveSession; now: number; mode: "live" |
           {v.campaign && <span className={s.liveMeta}>{v.campaign}</span>}
         </span>
         <span className={s.liveNow}>
+          {v.onLandingPage && <span className={s.chip}>Landing page · {v.site}</span>}
           <span className={s.liveLoc}>{v.currentTitle || v.currentPath || "—"}</span>
-          <span className={`${s.liveMeta} ${stageClass}`}>{STAGE_LABELS[v.checkout]}</span>
+          <span className={`${s.liveMeta} ${stageClass}`}>
+            {v.checkout === "none" && v.activity.some((a) => a.kind === "cart") ? "Clicked buy → heading to checkout" : STAGE_LABELS[v.checkout]}
+            {v.checkout !== "none" && v.landingSite && v.landingSite !== v.site ? ` · came from ${v.landingSite}` : ""}
+          </span>
         </span>
         <span className={s.liveWhen}>
           {v.active && <span className={s.liveDot} aria-label="Active now" />}
@@ -84,13 +89,16 @@ function Visitor({ v, now, mode }: { v: LiveSession; now: number; mode: "live" |
           {v.activity.map((a, i) => (
             <li key={`${a.at}-${i}`}>
               <span className={s.muted}>{formatStoreTime(a.at, { hour: "numeric", minute: "2-digit", second: "2-digit" })}</span>
-              <span className={a.kind === "checkout" ? s.warnText : undefined}>{a.label}</span>
-              {a.kind === "page" && a.path && a.label !== a.path && <span className={s.muted}>{a.path}</span>}
+              <span className={a.kind === "checkout" || a.kind === "cart" ? s.warnText : undefined}>{a.label}</span>
+              {a.kind === "page" && (
+                <span className={s.muted}>{[isLandingSite(a.site) ? a.site : null, a.path && a.label !== a.path ? a.path : null].filter(Boolean).join(" ")}</span>
+              )}
             </li>
           ))}
         </ol>
         <div className={s.liveMeta} style={{ marginTop: 8 }}>
-          Landed on {v.landingPath ?? "—"} · first seen {ago(v.startedAt, now)}
+          Landed on {isLandingSite(v.landingSite) ? v.landingSite : ""}
+          {v.landingPath ?? "—"} · first seen {ago(v.startedAt, now)}
           {mode === "live" && (
             <>
               {" · "}
@@ -113,7 +121,7 @@ export default async function LivePage() {
 
   return (
     <>
-      <PageHead title="Live" subtitle="Who's on your store right now, where they came from and what they're doing" mode={mode} action={<AutoRefresh seconds={10} />} exportable={false} />
+      <PageHead title="Live" subtitle="Who's on your store and landing pages right now, where they came from and where they're going" mode={mode} action={<AutoRefresh seconds={10} />} exportable={false} />
 
       <div className={s.liveHero}>
         <div>
@@ -123,6 +131,7 @@ export default async function LivePage() {
           </div>
         </div>
         <div className={s.liveHeroStats}>
+          <div><b>{live.onLandingPages}</b><span>on landing pages</span></div>
           <div><b>{live.inCheckout}</b><span>in checkout</span></div>
           <div><b>{live.purchases}</b><span>purchases · 30 min</span></div>
           <div><b>{live.sessions.length}</b><span>visits · 30 min</span></div>

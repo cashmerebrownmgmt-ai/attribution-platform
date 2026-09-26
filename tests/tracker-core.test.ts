@@ -163,3 +163,13 @@ describe("cross-domain helpers", async () => {
     expect(visitorFromUrl("https://cashmerebrown.com/?_ap_vid=junk")).toBeNull();
   });
 });
+
+describe("isEditorPreview", async () => {
+  const { isEditorPreview } = await import("@/tracker/core");
+  it("skips Lovable editor previews but not published pages", () => {
+    expect(isEditorPreview("id-preview--8d3ce4d7-4b99-4a20-943c-74032c711533.lovable.app")).toBe(true);
+    expect(isEditorPreview("preview--art-of-noise-bundle.lovable.app")).toBe(true);
+    expect(isEditorPreview("art-of-noise-bundle.lovable.app")).toBe(false);
+    expect(isEditorPreview("lowendbundle.cashmerebrown.com")).toBe(false);
+  });
+});

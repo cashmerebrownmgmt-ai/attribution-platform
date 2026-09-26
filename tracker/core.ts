@@ -206,3 +206,6 @@ export function visitorFromUrl(url: string): string | null {
     return null;
   }
 }
+
+/** Lovable's editor previews (id-preview--….lovable.app), which aren't real visitors. */
+export const isEditorPreview = (hostname: string) => /^(id-)?preview--[^.]*\.lovable\.app$/i.test(hostname);

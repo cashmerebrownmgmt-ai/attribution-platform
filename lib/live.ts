@@ -3,6 +3,7 @@
  * device and a short activity trail. Pure.
  */
 import { classifyChannel, type Channel } from "./channel";
+import { isLandingSite, siteOf, STORE_HOSTS } from "./store-hosts";
 
 export type LiveEvent = {
   id: string;
@@ -11,6 +12,7 @@ export type LiveEvent = {
   type: string;
   source: "tracker" | "pixel";
   occurred_at: string;
+  url?: string | null;
   path: string | null;
   title: string | null;
   referrer: string | null;
@@ -44,10 +46,15 @@ export type LiveSession = {
   landingPath: string | null;
   currentPath: string | null;
   currentTitle: string | null;
+  /** The site the visitor is on now / arrived on: the store's host, or a landing page's. */
+  site: string | null;
+  landingSite: string | null;
+  /** Currently on an off-store landing page (and not yet in checkout). */
+  onLandingPage: boolean;
   pageViews: number;
   checkout: CheckoutStage;
   /** Newest first, at most `trail` items. */
-  activity: { at: string; label: string; path: string | null; kind: "page" | "checkout" }[];
+  activity: { at: string; label: string; path: string | null; site: string | null; kind: "page" | "checkout" | "cart" }[];
 };
 
 export type LiveSummary = {
@@ -58,6 +65,8 @@ export type LiveSummary = {
   topPages: { label: string; count: number }[];
   inCheckout: number;
   purchases: number;
+  /** Active visitors on off-store landing pages right now. */
+  onLandingPages: number;
 };
 
 const STAGE_BY_TYPE: Record<string, CheckoutStage> = {
@@ -115,7 +124,8 @@ export function locationLabel(l: LiveSession["location"]): string {
   return [l.city, l.region && l.region !== l.city ? l.region : null, l.country].filter(Boolean).join(", ") || "Unknown location";
 }
 
-export function liveSummary(events: LiveEvent[], now: number, opts: { activeMinutes?: number; trail?: number } = {}): LiveSummary {
+export function liveSummary(events: LiveEvent[], now: number, opts: { activeMinutes?: number; trail?: number; storeHosts?: string[] } = {}): LiveSummary {
+  const storeHosts = opts.storeHosts ?? STORE_HOSTS;
   const activeMs = (opts.activeMinutes ?? 5) * 60_000;
   const trail = opts.trail ?? 8;
   const sorted = [...events].sort((a, b) => a.occurred_at.localeCompare(b.occurred_at));
@@ -153,11 +163,14 @@ export function liveSummary(events: LiveEvent[], now: number, opts: { activeMinu
     const activity = evs
       .slice(-trail)
       .reverse()
-      .map((e) =>
-        STAGE_BY_TYPE[e.type]
-          ? { at: e.occurred_at, label: STAGE_LABELS[STAGE_BY_TYPE[e.type]], path: e.path, kind: "checkout" as const }
-          : { at: e.occurred_at, label: e.title || e.path || "Page", path: e.path, kind: "page" as const },
-      );
+      .map((e) => {
+        const site = siteOf(e.url);
+        if (STAGE_BY_TYPE[e.type]) return { at: e.occurred_at, label: STAGE_LABELS[STAGE_BY_TYPE[e.type]], path: e.path, site, kind: "checkout" as const };
+        if (e.type === "add_to_cart")
+          return { at: e.occurred_at, label: isLandingSite(site, storeHosts) ? "Clicked buy → going to checkout" : "Added to cart", path: e.path, site, kind: "cart" as const };
+        return { at: e.occurred_at, label: e.title || e.path || "Page", path: e.path, site, kind: "page" as const };
+      });
+    const site = siteOf(lastPage?.url ?? null);
 
     return {
       key,
@@ -173,6 +186,9 @@ export function liveSummary(events: LiveEvent[], now: number, opts: { activeMinu
       landingPath: first.path,
       currentPath: lastPage?.path ?? last.path,
       currentTitle: lastPage?.title ?? null,
+      site,
+      landingSite: siteOf(first.url ?? null),
+      onLandingPage: isLandingSite(site, storeHosts) && checkout === "none",
       pageViews: pages.length,
       checkout,
       activity,
@@ -193,8 +209,9 @@ export function liveSummary(events: LiveEvent[], now: number, opts: { activeMinu
     sessions,
     topLocations: top(active.map((s) => locationLabel(s.location))),
     topSources: top(active.map((s) => s.sourceLabel)),
-    topPages: top(active.map((s) => s.currentTitle || s.currentPath || "Unknown")),
+    topPages: top(active.map((s) => `${s.onLandingPage ? `${s.site} · ` : ""}${s.currentTitle || s.currentPath || "Unknown"}`)),
     inCheckout: active.filter((s) => s.checkout !== "none" && s.checkout !== "purchased").length,
     purchases: sessions.filter((s) => s.checkout === "purchased").length,
+    onLandingPages: active.filter((s) => s.onLandingPage).length,
   };
 }

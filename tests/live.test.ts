@@ -88,3 +88,41 @@ describe("demo live traffic", () => {
     expect(demoLiveEvents(NOW).every((e) => Date.parse(e.occurred_at) <= NOW)).toBe(true);
   });
 });
+
+describe("landing-page visitors", () => {
+  const LP = "https://lowendbundle.cashmerebrown.com/";
+  const STORE = ["cashmerebrown.com"];
+  it("shows a visitor on a landing page, with the site", () => {
+    const l = liveSummary([ev(2, { url: `${LP}?utm_source=facebook&utm_medium=paid&fbclid=F`, utm_source: "facebook", utm_medium: "paid", fbclid: "F", title: "The Low End Bundle" })], NOW, { storeHosts: STORE });
+    const v = l.sessions[0];
+    expect(v).toMatchObject({ site: "lowendbundle.cashmerebrown.com", landingSite: "lowendbundle.cashmerebrown.com", onLandingPage: true, channel: "paid_social" });
+    expect(l.onLandingPages).toBe(1);
+    expect(l.topPages[0].label).toBe("lowendbundle.cashmerebrown.com · The Low End Bundle");
+  });
+
+  it("follows them from the buy click into checkout on the store", () => {
+    const l = liveSummary(
+      [
+        ev(4, { url: LP, title: "The Low End Bundle" }),
+        ev(3, { url: LP, type: "add_to_cart" }),
+        ev(2, { session_id: null, source: "pixel", type: "checkout_started", url: "https://cashmerebrown.com/checkouts/cn/x", path: "/checkouts/cn/x" }),
+        ev(1, { session_id: null, source: "pixel", type: "checkout_completed", url: "https://cashmerebrown.com/checkouts/cn/x/thank-you", path: "/checkouts/cn/x/thank-you" }),
+      ],
+      NOW,
+      { storeHosts: STORE },
+    );
+    expect(l.sessions).toHaveLength(1);
+    const v = l.sessions[0];
+    expect(v.checkout).toBe("purchased");
+    expect(v.onLandingPage).toBe(false);
+    expect(v.landingSite).toBe("lowendbundle.cashmerebrown.com");
+    expect(v.activity.map((a) => a.label)).toEqual(["Purchased", "Started checkout", "Clicked buy → going to checkout", "The Low End Bundle"]);
+    expect(l.onLandingPages).toBe(0);
+  });
+
+  it("labels an add to cart on the store normally", () => {
+    const l = liveSummary([ev(2, { url: "https://cashmerebrown.com/products/x" }), ev(1, { url: "https://cashmerebrown.com/products/x", type: "add_to_cart" })], NOW, { storeHosts: STORE });
+    expect(l.sessions[0].activity[0].label).toBe("Added to cart");
+    expect(l.sessions[0].onLandingPage).toBe(false);
+  });
+});
