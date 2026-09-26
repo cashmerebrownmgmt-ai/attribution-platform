@@ -49,6 +49,14 @@ function host(url: string | null | undefined): string {
 const hostMatches = (h: string, patterns: string[]) =>
   patterns.some((p) => (p.endsWith(".") ? h.includes(p) : h === p || h.endsWith(`.${p}`)));
 
+/** The social network a referrer belongs to, for paid visits that carry no utm_source. */
+export function socialNetworkOf(referrer: string | null | undefined): "meta" | "tiktok" | null {
+  const h = host(referrer);
+  if (hostMatches(h, ["facebook.com", "fb.com", "instagram.com", "threads.net"])) return "meta";
+  if (hostMatches(h, ["tiktok.com"])) return "tiktok";
+  return null;
+}
+
 export function classifyChannel(s: SourceSignals): Channel {
   const medium = s.utm_medium?.trim().toLowerCase() ?? "";
   const source = s.utm_source?.trim().toLowerCase() ?? "";
@@ -58,8 +66,8 @@ export function classifyChannel(s: SourceSignals): Channel {
   if (s.ttclid) return "paid_social";
   if (PAID_SOCIAL_MEDIUMS.includes(medium)) return "paid_social";
   if (PAID_SEARCH_MEDIUMS.includes(medium)) {
-    // "cpc" from a social network is a paid social ad, not search.
-    return SOCIAL_SOURCES.includes(source) ? "paid_social" : "paid_search";
+    // "cpc" from a social network (by source, or by referrer when the source is missing) is a paid social ad, not search.
+    return SOCIAL_SOURCES.includes(source) || (!source && hostMatches(ref, SOCIAL_SITES)) ? "paid_social" : "paid_search";
   }
   if (medium === "email" || medium === "e-mail" || source === "klaviyo") return "email";
   if (medium === "sms" || medium === "text") return "sms";
@@ -67,8 +75,10 @@ export function classifyChannel(s: SourceSignals): Channel {
   if (SOCIAL_MEDIUMS.includes(medium)) return "organic_social";
   if (medium === "organic" && SEARCH_SOURCES.includes(source)) return "organic_search";
   if (medium === "referral") return "referral";
-  // Facebook adds fbclid to organic link shares too, so fbclid alone isn't proof of an ad.
-  if (s.fbclid) return "organic_social";
+  // An fbclid without UTMs counts as a Meta ad (owner's choice): established ads run untagged, and
+  // their sales would otherwise read as organic. Facebook also tags some organic shares, so this can
+  // overcount slightly; ads tagged utm_medium=social (or similar) above stay organic.
+  if (s.fbclid) return "paid_social";
   if (source) {
     if (SOCIAL_SOURCES.includes(source)) return "organic_social";
     if (SEARCH_SOURCES.includes(source)) return "organic_search";

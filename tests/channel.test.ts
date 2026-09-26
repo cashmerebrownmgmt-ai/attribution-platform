@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { classifyChannel, type SourceSignals } from "@/lib/channel";
+import { toTouch } from "@/lib/metrics/touch";
 
 describe("classifyChannel", () => {
   it.each<[string, SourceSignals, string]>([
@@ -8,7 +9,10 @@ describe("classifyChannel", () => {
     ["gclid wins over utm email", { gclid: "g", utm_medium: "email" }, "paid_search"],
     ["ttclid", { ttclid: "t" }, "paid_social"],
     ["fbclid + paid medium", { fbclid: "f", utm_medium: "paid_social" }, "paid_social"],
-    ["fbclid alone (organic share)", { fbclid: "f" }, "organic_social"],
+    ["fbclid alone (untagged Meta ad)", { fbclid: "f", referrer: "https://l.facebook.com/" }, "paid_social"],
+    ["fbclid with an organic medium stays organic", { fbclid: "f", utm_source: "facebook", utm_medium: "social" }, "organic_social"],
+    ["paid medium from a Facebook referrer, no source", { utm_medium: "paid", referrer: "https://m.facebook.com/" }, "paid_social"],
+    ["paid medium, no source or referrer", { utm_medium: "paid" }, "paid_search"],
     ["utm cpc from google", { utm_source: "google", utm_medium: "cpc" }, "paid_search"],
     ["utm cpc from facebook", { utm_source: "facebook", utm_medium: "cpc" }, "paid_social"],
     ["utm paidsocial", { utm_source: "tiktok", utm_medium: "paidsocial" }, "paid_social"],
@@ -31,5 +35,15 @@ describe("classifyChannel", () => {
     ["bad referrer", { referrer: "::" }, "direct"],
   ])("%s", (_name, signals, expected) => {
     expect(classifyChannel(signals)).toBe(expected);
+  });
+});
+
+describe("toTouch platform", () => {
+  it("credits Meta for an untagged ad click and for a paid visit from Instagram", () => {
+    expect(toTouch({ fbclid: "f", referrer: "https://l.facebook.com/" })).toMatchObject({ channel: "paid_social", platform: "meta" });
+    expect(toTouch({ utm_medium: "paid", referrer: "https://l.instagram.com/" })).toMatchObject({ channel: "paid_social", platform: "meta" });
+  });
+  it("gives organic Instagram traffic no platform", () => {
+    expect(toTouch({ referrer: "https://l.instagram.com/" })).toMatchObject({ channel: "organic_social", platform: null });
   });
 });

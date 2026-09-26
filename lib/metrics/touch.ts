@@ -3,7 +3,7 @@
  * Relies on the UTM convention: utm_campaign = platform campaign ID, utm_content = platform ad ID.
  */
 import type { SourceSignals } from "../channel";
-import { classifyChannel } from "../channel";
+import { classifyChannel, socialNetworkOf } from "../channel";
 import type { Platform, Touch } from "./types";
 
 const SOURCE_PLATFORMS: Record<string, Platform> = {
@@ -29,7 +29,7 @@ export function platformOf(s: SourceSignals): Platform | null {
   const source = s.utm_source?.trim().toLowerCase() ?? "";
   if (SOURCE_PLATFORMS[source]) return SOURCE_PLATFORMS[source];
   if (s.fbclid) return "meta";
-  return null;
+  return socialNetworkOf(s.referrer);
 }
 
 export type TouchSignals = SourceSignals & { utm_campaign?: string | null; utm_content?: string | null };

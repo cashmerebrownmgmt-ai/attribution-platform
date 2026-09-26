@@ -124,16 +124,21 @@ async function loadLive(): Promise<DashboardData> {
 
   const touchFor = (a: AttributionRow | undefined): Touch => {
     if (!a?.events) return { ...toTouch(null), channel: a?.channel ?? "direct" };
-    return { ...toTouch(a.events), channel: a.channel };
+    // Re-classified from the event on every load, so channel rule changes apply to past orders too.
+    return toTouch(a.events);
   };
 
   const journeyOf = new Map(journeys.map((j) => [j.order_id, j]));
 
   const facts: OrderFact[] = orders.map((o) => {
-    // Our own tracking wins; Shopify's journey only fills in orders it didn't match.
-    const j = o.stitch_method === "none" ? journeyOf.get(o.id) : undefined;
+    const attr = byOrder.get(o.id) ?? {};
+    const touches = Object.fromEntries(MODELS.map((m) => [m, touchFor(attr[m])])) as Record<Model, Touch>;
+    // Our own tracking wins; Shopify's journey fills in orders it didn't match, and orders where our
+    // tracking only saw the checkout (no source), e.g. an ad linking straight to a cart link.
+    const oursHasSource = o.stitch_method !== "none" && touches.last_non_direct.channel !== "direct";
+    const j = oursHasSource ? undefined : journeyOf.get(o.id);
     const jt = j ? journeyTouches(j) : null;
-    if (jt) {
+    if (jt && (o.stitch_method === "none" || jt.last_non_direct.channel !== "direct")) {
       return {
         id: o.id,
         name: o.name ?? o.id,
@@ -150,8 +155,6 @@ async function loadLive(): Promise<DashboardData> {
         items: itemsOf.get(o.id) ?? [],
       };
     }
-    const attr = byOrder.get(o.id) ?? {};
-    const touches = Object.fromEntries(MODELS.map((m) => [m, touchFor(attr[m])])) as Record<Model, Touch>;
     const first = attr.first_touch?.events?.occurred_at;
     const path = [touches.first_touch.channel, touches.last_non_direct.channel, touches.last_touch.channel];
     return {
