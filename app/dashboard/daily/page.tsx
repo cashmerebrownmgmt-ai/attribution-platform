@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { longDay, type ReportKpi } from "@/lib/daily-report";
+import { longDay, type ReportAbandoned, type ReportKpi } from "@/lib/daily-report";
 import { getDailyReport, listReportDays } from "@/lib/daily-report-data";
 import { PLATFORM_LABELS } from "@/lib/dashboard/filters";
 import { money, num, pct, roas, signedPct } from "@/lib/dashboard/format";
 import { loadPage } from "@/lib/dashboard/page";
+import { formatStoreTime } from "@/lib/tz";
 import { delta } from "@/lib/metrics/compute";
 import { VERDICT_LABELS } from "@/lib/metrics/signals";
 import type { Platform } from "@/lib/metrics/types";
@@ -11,6 +12,62 @@ import s from "../dashboard.module.css";
 import { DataTable } from "../_components/DataTable";
 import { Tips } from "../_components/Tips";
 import { Card, PageHead, StatusIcon } from "../_components/ui";
+
+function AbandonedCard({ a }: { a: ReportAbandoned }) {
+  return (
+    <>
+      <Card title="Abandoned carts & checkouts" sub="Visits that added to cart or reached checkout and left without buying">
+        <div className={s.kpiGrid} style={{ marginBottom: 12 }}>
+          <div className={s.card}>
+            <div className={s.kpiLabel}>Abandoned carts</div>
+            <div className={s.kpiValue}>{num(a.carts)}</div>
+            <div className={s.muted}>{a.cartRate === null ? "—" : `${pct(a.cartRate, 0)} of carts didn't buy`}</div>
+          </div>
+          <div className={s.card}>
+            <div className={s.kpiLabel}>Abandoned checkouts</div>
+            <div className={s.kpiValue}>{num(a.checkouts)}</div>
+            <div className={s.muted}>{a.checkoutRate === null ? "—" : `${pct(a.checkoutRate, 0)} of checkouts didn't finish`}</div>
+          </div>
+          <div className={s.card}>
+            <div className={s.kpiLabel}>Left in checkouts</div>
+            <div className={s.kpiValue}>{a.valueLeft === null ? "—" : money(a.valueLeft, a.currency, { cents: true })}</div>
+            <div className={s.muted}>{a.valueLeft === null ? "Shopify unavailable" : `${a.list.length} in Shopify`}</div>
+          </div>
+          <div className={s.card}>
+            <div className={s.kpiLabel}>Bounce rate</div>
+            <div className={s.kpiValue}>{pct(a.bounceRate, 0)}</div>
+            <div className={s.muted}>One page, no cart</div>
+          </div>
+        </div>
+        <div className={s.grid2}>
+          <DataTable
+            nameLabel="Step"
+            currency={a.currency}
+            empty="No visits."
+            columns={[{ key: "n", label: "Visits", kind: "text" }]}
+            rows={a.funnel.map((f) => ({ id: f.label, name: f.label, values: { n: num(f.count) } }))}
+          />
+          <DataTable
+            nameLabel="Shopify abandoned checkout"
+            currency={a.currency}
+            defaultSort="value"
+            empty="No abandoned checkouts in Shopify."
+            columns={[
+              { key: "value", label: "Value", kind: "money" },
+              { key: "from", label: "Likely from", kind: "text" },
+            ]}
+            rows={a.list.map((c) => ({
+              id: c.at,
+              name: `${formatStoreTime(c.at, { hour: "numeric", minute: "2-digit" })} · ${c.items.join(", ") || "—"}`,
+              values: { value: c.value, from: c.source ? `${c.source}${c.step ? ` (${c.step.toLowerCase()})` : ""}` : "—" },
+            }))}
+          />
+        </div>
+      </Card>
+      <div style={{ height: 12 }} />
+    </>
+  );
+}
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -174,6 +231,8 @@ export default async function DailyReportPage({ searchParams }: PageProps<"/dash
           />
         </Card>
       </div>
+
+      {r.abandoned && <AbandonedCard a={r.abandoned} />}
 
       <Card title="How people shopped this week" sub="Last 7 days vs the 7 before">
         <Tips tips={r.tips} open={1} />

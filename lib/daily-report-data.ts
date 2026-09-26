@@ -1,14 +1,27 @@
 import "server-only";
-import { buildDailyReport, reportDayFor, type DailyReport } from "./daily-report";
+import { buildAbandonment } from "./abandonment";
+import { loadPixelSteps, loadShopifyAbandoned } from "./abandonment-data";
+import { abandonedSection, buildDailyReport, reportDayFor, type DailyReport } from "./daily-report";
 import { getDashboardData, todayUtc } from "./dashboard/data";
 import { db } from "./db";
 import { addDays } from "./metrics/compute";
+import { sessionsIn } from "./sessions";
 import { loadSessions } from "./sessions-data";
+import { storeDay } from "./tz";
 
 /** Build the report for a day from current data (sessions from two weeks before it through the next UTC day). */
 export async function computeDailyReport(mode: "live" | "demo", day: string, now = Date.now()): Promise<DailyReport> {
   const [data, sessions] = await Promise.all([getDashboardData(mode), loadSessions(mode, { from: addDays(day, -14), to: addDays(day, 1) }, todayUtc())]);
-  return buildDailyReport(data, sessions, day, { now });
+  // Abandoned carts and checkouts that day (a missing section never blocks the report).
+  const dayRange = { from: day, to: day };
+  const daySessions = sessionsIn(sessions, dayRange);
+  const abandoned = await Promise.all([loadPixelSteps(mode, dayRange, daySessions), loadShopifyAbandoned(mode, dayRange, daySessions)])
+    .then(([pixel, shopifyAll]) => {
+      const shopify = (shopifyAll ?? []).filter((x) => storeDay(x.createdAt) === day);
+      return abandonedSection(buildAbandonment({ sessions: daySessions, pixel, shopify, now, currency: data.settings.currency }), shopifyAll !== null);
+    })
+    .catch(() => undefined);
+  return buildDailyReport(data, sessions, day, { now, abandoned });
 }
 
 /** Build yesterday's report and save it. Called by the morning job. */

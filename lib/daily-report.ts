@@ -3,6 +3,8 @@
  * and the 7 days before, plus what to do today. Pure and JSON-serializable, so the morning job can
  * save a snapshot and the page and PDF render the same thing.
  */
+import type { Abandonment } from "./abandonment";
+import { STEP_LABELS } from "./abandonment";
 import { alertsFor, type Alert } from "./alerts";
 import { STORE_TZ } from "./tz";
 import { behaviorTips, type Tip } from "./behavior-insights";
@@ -46,7 +48,44 @@ export type DailyReport = {
   tips: Tip[];
   alerts: Alert[];
   health: { name: string; level: "ok" | "warn" | "bad"; detail: string }[];
+  /** Absent on reports saved before this section existed. */
+  abandoned?: ReportAbandoned;
 };
+
+export type ReportAbandoned = {
+  carts: number;
+  checkouts: number;
+  cartRate: number | null;
+  checkoutRate: number | null;
+  bounceRate: number | null;
+  /** Null when Shopify couldn't be reached. */
+  valueLeft: number | null;
+  currency: string;
+  funnel: { label: string; count: number }[];
+  /** Shopify's abandoned checkouts that day: time, value, products and, when matched, the visit's source. */
+  list: { at: string; value: number; items: string[]; source: string | null; step: string | null }[];
+};
+
+/** The daily report's abandonment section, from the day's abandonment analysis. */
+export function abandonedSection(a: Abandonment, shopifyAvailable: boolean): ReportAbandoned {
+  const byKey = new Map(a.rows.map((r) => [r.key, r]));
+  return {
+    carts: a.abandonedCarts,
+    checkouts: a.abandonedCheckouts,
+    cartRate: a.cartAbandonRate,
+    checkoutRate: a.checkoutAbandonRate,
+    bounceRate: a.bounceRate,
+    valueLeft: shopifyAvailable ? a.valueLeft : null,
+    currency: a.currency,
+    funnel: a.funnel.map((f) => ({ label: f.label, count: f.count })),
+    list: a.shopify
+      .map((x) => {
+        const row = x.matchedKey ? byKey.get(x.matchedKey) : undefined;
+        return { at: x.createdAt, value: x.value, items: x.items, source: row?.source ?? null, step: row ? STEP_LABELS[row.furthest] : null };
+      })
+      .sort((p, q) => q.at.localeCompare(p.at)),
+  };
+}
 
 type DayStats = { revenue: number; orders: number; newCustomers: number; sessions: number; conversions: number; adSpend: number; adRevenue: number; platformRevenue: number };
 
@@ -90,7 +129,7 @@ const money = (n: number, cur: string) => new Intl.NumberFormat("en-US", { style
 const weekday = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
 export const longDay = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" });
 
-export function buildDailyReport(data: DashboardData, sessions: SessionFact[], day: string, opts: { now?: number; tz?: string } = {}): DailyReport {
+export function buildDailyReport(data: DashboardData, sessions: SessionFact[], day: string, opts: { now?: number; tz?: string; abandoned?: ReportAbandoned } = {}): DailyReport {
   const tz = opts.tz ?? REPORT_TZ;
   const now = opts.now ?? Date.parse(data.generatedAt);
   const cur = data.settings.currency;
@@ -221,6 +260,15 @@ export function buildDailyReport(data: DashboardData, sessions: SessionFact[], d
   const counts = (v: Verdict) => actions.filter((a) => a.verdict === v).length;
   const todo = [counts("scale") && `scale ${counts("scale")}`, counts("pause") && `pause ${counts("pause")}`, counts("refresh") && `refresh ${counts("refresh")}`].filter(Boolean);
   if (todo.length) summary.push(`Suggested today: ${todo.join(", ")} ad${actions.length > 1 ? "s" : ""} (details below).`);
+  const ab = opts.abandoned;
+  if (ab && (ab.carts || ab.checkouts || (ab.valueLeft ?? 0) > 0)) {
+    const parts = [ab.carts ? `${ab.carts} cart${ab.carts === 1 ? "" : "s"}` : null, ab.checkouts ? `${ab.checkouts} checkout${ab.checkouts === 1 ? "" : "s"}` : null].filter(Boolean);
+    summary.push(
+      `${parts.length ? `${parts.join(" and ")} ${ab.carts + ab.checkouts === 1 ? "was" : "were"} abandoned` : "Checkouts were abandoned"}` +
+        (ab.valueLeft ? `; Shopify shows ${money(ab.valueLeft, ab.currency)} left in abandoned checkouts` : "") +
+        ".",
+    );
+  }
   if (alerts.length) summary.push(`${alerts.length} alert${alerts.length > 1 ? "s" : ""} need${alerts.length > 1 ? "" : "s"} attention: ${alerts.map((a) => a.title).join("; ")}.`);
 
   return {
@@ -238,6 +286,7 @@ export function buildDailyReport(data: DashboardData, sessions: SessionFact[], d
     tips,
     alerts,
     health,
+    ...(opts.abandoned ? { abandoned: opts.abandoned } : {}),
   };
 }
 

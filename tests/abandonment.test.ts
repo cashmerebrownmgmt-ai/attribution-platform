@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildAbandonment, type PixelStep, type ShopifyAbandoned } from "@/lib/abandonment";
+import { abandonedSection, buildDailyReport } from "@/lib/daily-report";
 import type { SessionFact } from "@/lib/sessions";
 
 const NOW = Date.parse("2026-09-26T18:00:00Z");
@@ -80,5 +81,43 @@ describe("mapAbandoned", async () => {
     const base = { id: "gid://shopify/AbandonedCheckout/123", createdAt: "2026-09-25T03:45:30Z", completedAt: null, totalPriceSet: { shopMoney: { amount: "72.98", currencyCode: "USD" } }, lineItems: { nodes: [{ title: "The Art Of Noise Complete Bundle", quantity: 1 }, { title: "808 Essentials", quantity: 2 }] } };
     expect(mapAbandoned(base)).toEqual({ id: "123", createdAt: "2026-09-25T03:45:30Z", value: 72.98, currency: "USD", items: ["The Art Of Noise Complete Bundle", "808 Essentials ×2"] });
     expect(mapAbandoned({ ...base, completedAt: "2026-09-25T04:00:00Z" })).toBeNull();
+  });
+});
+
+describe("daily report section", () => {
+  const checkout = session({ added_to_cart: true, reached_checkout: true, minAgo: 100, utm_source: "facebook", utm_medium: "paid", fbclid: "F" });
+  const a = buildAbandonment({
+    sessions: [checkout, session({ pageviews: 1 })],
+    pixel: [px(checkout.visitor_id, "checkout_started", 97)],
+    shopify: [
+      { id: "a1", createdAt: at(96), value: 72.98, currency: "USD", items: ["Art of Noise Complete Bundle"] },
+      { id: "a2", createdAt: at(30), value: 15, currency: "USD", items: ["The Soul Reserve Vol. 1"] },
+    ],
+    now: NOW,
+  });
+
+  it("lists Shopify's checkouts newest first, with the matched visit's source and step", () => {
+    const s = abandonedSection(a, true);
+    expect(s).toMatchObject({ carts: 0, checkouts: 1, valueLeft: 87.98, currency: "USD" });
+    expect(s.list.map((c) => c.value)).toEqual([15, 72.98]);
+    expect(s.list[0]).toMatchObject({ source: null, step: null });
+    expect(s.list[1].source).toMatch(/facebook/i);
+    expect(s.list[1].step).toBe("Started checkout");
+    expect(JSON.parse(JSON.stringify(s))).toEqual(s);
+  });
+
+  it("shows no dollar figure when Shopify couldn't be reached", () => {
+    expect(abandonedSection(buildAbandonment({ sessions: [checkout], pixel: [], shopify: [], now: NOW }), false).valueLeft).toBeNull();
+  });
+
+  it("adds a summary line to the report", () => {
+    const r = buildDailyReport(
+      { mode: "live", generatedAt: at(0), settings: { currency: "USD", targetRoas: 2, targetCpa: 25, breakevenRoas: 1.5, lookbackDays: 30, businessName: null }, orders: [], campaigns: [], adGroups: [], ads: [], insights: [], health: { eventsByHour: [], lastEventAt: null, webhooks24h: { total: 0, failed: 0 }, lastWebhookAt: null, stitch7d: {}, pixelCheckouts7d: 0, orders7d: 0 } },
+      [],
+      "2026-09-25",
+      { abandoned: abandonedSection(a, true) },
+    );
+    expect(r.summary.join(" ")).toContain("1 checkout was abandoned; Shopify shows $88 left in abandoned checkouts.");
+    expect(r.abandoned?.list).toHaveLength(2);
   });
 });

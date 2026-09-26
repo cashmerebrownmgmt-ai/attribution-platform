@@ -10,6 +10,7 @@ import {
 import { longDay, type DailyReport, type ReportKpi } from "../daily-report";
 import { PLATFORM_LABELS } from "../dashboard/filters";
 import { VERDICT_LABELS } from "../metrics/signals";
+import { formatStoreTime } from "../tz";
 import type { Platform } from "../metrics/types";
 
 const C = {
@@ -320,6 +321,35 @@ export function DailyReportDocument({
                 money(p.value, cur),
               ])}
             />
+          </View>
+        )}
+
+        {r.abandoned && (
+          <View wrap={false}>
+            <Text style={st.h2}>Abandoned carts and checkouts</Text>
+            <Text style={st.note}>
+              {ascii(
+                `${r.abandoned.carts} abandoned cart${r.abandoned.carts === 1 ? "" : "s"} (${pct(r.abandoned.cartRate, 0)} of carts), ` +
+                  `${r.abandoned.checkouts} abandoned checkout${r.abandoned.checkouts === 1 ? "" : "s"} (${pct(r.abandoned.checkoutRate, 0)} of checkouts), ` +
+                  `${r.abandoned.valueLeft === null ? "Shopify unavailable" : `${money(r.abandoned.valueLeft, r.abandoned.currency, 2)} left in Shopify checkouts`}, ` +
+                  `bounce rate ${pct(r.abandoned.bounceRate, 0)}.`,
+              )}
+            </Text>
+            <Text style={st.note}>
+              {ascii(`Drop-off: ${r.abandoned.funnel.map((f) => `${f.label} ${f.count}`).join(" -> ")}`)}
+            </Text>
+            {r.abandoned.list.length > 0 && (
+              <Table
+                head={["Time", "Products", "Value", "Likely from"]}
+                widths={[1, 3, 1, 1.5]}
+                rows={r.abandoned.list.map((c) => [
+                  formatStoreTime(c.at, { hour: "numeric", minute: "2-digit" }),
+                  c.items.join(", ") || "-",
+                  money(c.value, r.abandoned!.currency, 2),
+                  c.source ?? "-",
+                ])}
+              />
+            )}
           </View>
         )}
 
