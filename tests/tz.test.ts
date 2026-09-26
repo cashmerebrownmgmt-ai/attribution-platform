@@ -108,3 +108,19 @@ describe("charts and today's comparison", async () => {
   });
 
 });
+
+describe("times of day are always shown in store time", async () => {
+  const { formatStoreTime, storeDateTime } = await import("@/lib/tz");
+  it("formats instants in Eastern regardless of the server's zone", () => {
+    expect(formatStoreTime("2026-09-25T02:11:00Z", { hour: "numeric", minute: "2-digit" })).toBe("10:11 PM"); // EDT
+    expect(formatStoreTime("2026-12-15T02:11:00Z", { hour: "numeric", minute: "2-digit" })).toBe("9:11 PM"); // EST
+    expect(formatStoreTime("2026-09-25T02:11:00Z", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" })).toBe("Sep 24, 10:11 PM EDT");
+    // A caller can't accidentally switch zones.
+    expect(formatStoreTime("2026-09-25T02:11:00Z", { hour: "numeric", timeZone: "UTC" } as Intl.DateTimeFormatOptions)).toBe("10 PM");
+  });
+  it("writes export timestamps in store time", () => {
+    expect(storeDateTime("2026-09-25T02:11:00Z")).toBe("2026-09-24 22:11");
+    expect(storeDateTime("2026-09-25T04:00:00Z")).toBe("2026-09-25 00:00");
+    expect(storeDateTime("nope")).toBe("");
+  });
+});

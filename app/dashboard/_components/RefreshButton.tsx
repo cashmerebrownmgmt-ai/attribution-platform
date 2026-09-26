@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
+import { formatStoreTime } from "@/lib/tz";
 import { useState, useTransition } from "react";
 import { refreshData, type RefreshResult } from "../refresh-action";
 import s from "../dashboard.module.css";
@@ -25,7 +26,8 @@ export function RefreshButton() {
       router.refresh();
     });
 
-  const time = result ? new Date(result.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : null;
+  // Store time, not the device's, so it matches every other time on the dashboard.
+  const time = result ? `${formatStoreTime(result.at, { hour: "numeric", minute: "2-digit" })} ET` : null;
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
       {result && !pending && (

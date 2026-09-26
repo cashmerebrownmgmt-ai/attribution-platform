@@ -1,15 +1,10 @@
 import s from "./debug.module.css";
+import { formatStoreTime } from "@/lib/tz";
 import { CHANNEL_LABELS, METHOD_LABELS } from "@/lib/debug";
 
 export function time(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short",
-  });
+  return formatStoreTime(iso, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
 }
 
 export function MethodChip({ method }: { method: string }) {

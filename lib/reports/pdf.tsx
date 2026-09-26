@@ -3,6 +3,7 @@
  * dashboard, so the numbers always match what's on screen.
  */
 import { Document, G, Line, Page, Rect, StyleSheet, Svg, Text, View, renderToBuffer } from "@react-pdf/renderer";
+import { formatStoreTime } from "../tz";
 import type { ReactNode } from "react";
 import { MODEL_LABELS, PLATFORM_LABELS } from "../dashboard/filters";
 import { CHANNEL_LABELS } from "../debug";
@@ -303,6 +304,6 @@ function Footer() {
 }
 
 export async function renderReport(data: DashboardData, f: Filters): Promise<Buffer> {
-  const generatedAt = new Date().toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+  const generatedAt = formatStoreTime(Date.now(), { dateStyle: "medium", timeStyle: "short" }) + " ET";
   return renderToBuffer(<ReportDocument data={data} f={f} generatedAt={generatedAt} />);
 }

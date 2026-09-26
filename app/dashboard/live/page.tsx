@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatStoreTime } from "@/lib/tz";
 import { currentMode } from "@/lib/dashboard/data";
 import { liveSummary, locationLabel, STAGE_LABELS, type LiveSession } from "@/lib/live";
 import { loadLiveEvents } from "@/lib/live-data";
@@ -82,7 +83,7 @@ function Visitor({ v, now, mode }: { v: LiveSession; now: number; mode: "live" |
         <ol>
           {v.activity.map((a, i) => (
             <li key={`${a.at}-${i}`}>
-              <span className={s.muted}>{new Date(a.at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", second: "2-digit" })}</span>
+              <span className={s.muted}>{formatStoreTime(a.at, { hour: "numeric", minute: "2-digit", second: "2-digit" })}</span>
               <span className={a.kind === "checkout" ? s.warnText : undefined}>{a.label}</span>
               {a.kind === "page" && a.path && a.label !== a.path && <span className={s.muted}>{a.path}</span>}
             </li>

@@ -1,4 +1,5 @@
 import { alertsFor } from "@/lib/alerts";
+import { formatStoreTime } from "@/lib/tz";
 import { loadPage } from "@/lib/dashboard/page";
 import { emailConfigured } from "@/lib/email";
 import { healthChecks, overallLevel } from "@/lib/metrics/health";
@@ -20,7 +21,7 @@ export default async function HealthPage({ searchParams }: PageProps<"/dashboard
   const alerts = alertsFor(data);
   const emailOn = emailConfigured() && !!process.env.CRON_SECRET;
   const hours = data.health.eventsByHour;
-  const hourLabel = (iso: string) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", timeZone: "UTC" });
+  const hourLabel = (iso: string) => formatStoreTime(iso, { hour: "numeric" });
 
   return (
     <>
@@ -78,7 +79,7 @@ export default async function HealthPage({ searchParams }: PageProps<"/dashboard
             ))}
           </div>
         </Card>
-        <Card title="Events received" sub="Per hour, last 48 hours (UTC)">
+        <Card title="Events received" sub="Per hour, last 48 hours (Eastern time)">
           {hours.length === 0 ? (
             <div className={s.empty}>No events in the last 48 hours.</div>
           ) : (
@@ -96,7 +97,7 @@ export default async function HealthPage({ searchParams }: PageProps<"/dashboard
               />
               <TableToggle>
                 <DataTable
-                  nameLabel="Hour (UTC)"
+                  nameLabel="Hour (Eastern)"
                   defaultSort="name"
                   columns={[
                     { key: "tracker", label: "Visits" },

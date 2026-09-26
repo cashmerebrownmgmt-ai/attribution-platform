@@ -1,5 +1,6 @@
 /** Tabular exports for every dashboard view, as CSV-ready headers + rows. Pure. */
 import { MODEL_LABELS, PLATFORM_LABELS } from "../dashboard/filters";
+import { storeDateTime } from "../tz";
 import { CHANNEL_LABELS } from "../debug";
 import { byChannel, daily, ordersIn, performance, type Filters, type PerfRow } from "../metrics/compute";
 import type { DashboardData } from "../metrics/types";
@@ -61,10 +62,10 @@ export function exportTable(data: DashboardData, f: Filters, view: ExportView): 
     case "orders": {
       const m = f.model;
       return {
-        headers: ["Order", "Created (UTC)", "Revenue", "New customer", "Matched by", `Channel (${MODEL_LABELS[m]})`, "Platform", "Campaign ID", "Ad ID"],
+        headers: ["Order", "Created (Eastern)", "Revenue", "New customer", "Matched by", `Channel (${MODEL_LABELS[m]})`, "Platform", "Campaign ID", "Ad ID"],
         rows: ordersIn(data, f.range)
           .filter((o) => f.platform === "all" || o.touches[m].platform === f.platform)
-          .map((o) => [o.name, o.createdAt, o.revenue, o.isNew ? "yes" : "no", o.stitchMethod, CHANNEL_LABELS[o.touches[m].channel] ?? o.touches[m].channel, o.touches[m].platform ?? "", o.touches[m].campaignId ?? "", o.touches[m].adId ?? ""]),
+          .map((o) => [o.name, storeDateTime(o.createdAt), o.revenue, o.isNew ? "yes" : "no", o.stitchMethod, CHANNEL_LABELS[o.touches[m].channel] ?? o.touches[m].channel, o.touches[m].platform ?? "", o.touches[m].campaignId ?? "", o.touches[m].adId ?? ""]),
       };
     }
   }

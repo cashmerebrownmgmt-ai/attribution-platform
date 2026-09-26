@@ -7,7 +7,7 @@ import type { Model } from "../attribution";
 import type { Channel } from "../channel";
 import type { Ad, DashboardData, Insight, OrderFact, Platform } from "./types";
 
-export type DateRange = { from: string; to: string }; // YYYY-MM-DD, inclusive, UTC days
+export type DateRange = { from: string; to: string }; // YYYY-MM-DD, inclusive, calendar days in the store's time zone
 
 export type Filters = {
   range: DateRange;

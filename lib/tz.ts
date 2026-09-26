@@ -36,3 +36,20 @@ export function storeHours(at: string | number | Date): number {
   const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
   return h + m / 60;
 }
+
+/** Format an instant in the store's time zone (every time of day shown on the dashboard goes through this). */
+export function formatStoreTime(at: string | number | Date, opts: Intl.DateTimeFormatOptions): string {
+  return new Date(at).toLocaleString("en-US", { ...opts, timeZone: STORE_TZ });
+}
+
+/** "2026-09-25 22:11" in store time, for exports. */
+export function storeDateTime(at: string | number | Date): string {
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone: STORE_TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(d)
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+}
