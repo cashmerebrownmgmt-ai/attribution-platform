@@ -11,7 +11,7 @@ import { BarList } from "../_components/charts/BarList";
 import { LineChart } from "../_components/charts/LineChart";
 import { DataTable } from "../_components/DataTable";
 import { Inspector, Preview } from "../_components/Inspector";
-import { Card, Filters, PageHead, PLATFORM_COLORS, TableToggle } from "../_components/ui";
+import { Card, Filters, PageHead, PLATFORM_COLORS, TableToggle, SyncIssueBanner } from "../_components/ui";
 import { inspectHref } from "@/lib/dashboard/inspect";
 
 export default async function ChannelsPage({ searchParams }: PageProps<"/dashboard/channels">) {
@@ -39,6 +39,7 @@ export default async function ChannelsPage({ searchParams }: PageProps<"/dashboa
     <>
       <PageHead title="Channels" subtitle="Where revenue comes from, and what each ad platform returns" mode={mode} />
       <Filters f={f} />
+      <SyncIssueBanner data={data} />
 
       <div className={s.grid2}>
         <Card title="Revenue by channel" sub="Credit under the selected attribution model">

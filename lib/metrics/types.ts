@@ -122,4 +122,8 @@ export type DashboardData = {
   insights: Insight[];
   health: HealthData;
   adSync?: AdSync[];
+  /** Set when the latest pull from an ad platform failed (live mode), so pages can say the spend is stale. */
+  syncIssue?: SyncIssue;
 };
+
+export type SyncIssue = { platform: Platform; message: string; lastSyncedAt: string | null };

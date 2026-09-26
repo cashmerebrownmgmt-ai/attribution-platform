@@ -17,7 +17,7 @@ import { FindingList } from "../_components/Breakdown";
 import { Inspector } from "../_components/Inspector";
 import { entityInfo } from "@/lib/dashboard/entity";
 import { inspectHref } from "@/lib/dashboard/inspect";
-import { Card, Filters, PageHead, PLATFORM_COLORS } from "../_components/ui";
+import { Card, Filters, PageHead, PLATFORM_COLORS, SyncIssueBanner } from "../_components/ui";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -76,6 +76,7 @@ export default async function CreativesPage({ searchParams }: PageProps<"/dashbo
     <>
       <PageHead title="Creatives" subtitle="Every ad as your customers see it, ranked by return" mode={mode} />
       <Filters f={f} />
+      <SyncIssueBanner data={data} />
 
       <div className={s.chips} role="group" aria-label="Filter by verdict">
         <Link href={`/dashboard/creatives${filterQuery(f)}`} className={`${s.chip} ${!verdictFilter ? s.chipOn : ""}`} scroll={false}>

@@ -10,7 +10,7 @@ import { BarList } from "./_components/charts/BarList";
 import { LineChart } from "./_components/charts/LineChart";
 import { DataTable } from "./_components/DataTable";
 import { Inspector, Preview } from "./_components/Inspector";
-import { Card, Filters, Kpi, PageHead, PLATFORM_COLORS, TableToggle } from "./_components/ui";
+import { Card, Filters, Kpi, PageHead, PLATFORM_COLORS, TableToggle, SyncIssueBanner } from "./_components/ui";
 import { longDay, reportDayFor } from "@/lib/daily-report";
 import { STORE_TZ, storeDay } from "@/lib/tz";
 import { inspectHref } from "@/lib/dashboard/inspect";
@@ -81,6 +81,7 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
         <span style={{ color: "var(--s1)", whiteSpace: "nowrap" }}>Read it →</span>
       </Link>
       <Filters f={f} />
+      <SyncIssueBanner data={data} />
 
       {mode === "live" && data.orders.length === 0 && (
         <div className={s.callout}>

@@ -1,10 +1,12 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { MODELS } from "@/lib/attribution";
 import { MODEL_LABELS, PLATFORM_LABELS, PRESETS, type ParsedFilters } from "@/lib/dashboard/filters";
 import { shortDate, signedPct } from "@/lib/dashboard/format";
 import { todayUtc } from "@/lib/dashboard/data";
 import { delta } from "@/lib/metrics/compute";
-import { AD_PLATFORMS, type Platform } from "@/lib/metrics/types";
+import { syncIssueCheck } from "@/lib/metrics/health";
+import { AD_PLATFORMS, type DashboardData, type Platform } from "@/lib/metrics/types";
 import s from "../dashboard.module.css";
 import { RefreshButton } from "./RefreshButton";
 import { Suspense } from "react";
@@ -143,6 +145,18 @@ export function Kpi({
         {trend && <Sparkline values={trend} />}
       </div>
       {target && <div className={s.kpiTarget}>{target}</div>}
+    </div>
+  );
+}
+
+/** Banner for a failed ad-platform pull, so stale spend and ROAS aren't mistaken for current. */
+export function SyncIssueBanner({ data }: { data: DashboardData }) {
+  if (!data.syncIssue) return null;
+  const c = syncIssueCheck(data.syncIssue, Date.parse(data.generatedAt));
+  return (
+    <div className={s.callout} role="alert" style={{ borderColor: "var(--bad-text)" }}>
+      <strong>{c.name}.</strong> {c.detail} Ad spend and ROAS below are from that pull, not live. {c.fix}{" "}
+      <Link href="/dashboard/health">Details</Link>
     </div>
   );
 }

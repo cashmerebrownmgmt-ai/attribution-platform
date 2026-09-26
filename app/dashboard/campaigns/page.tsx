@@ -7,7 +7,7 @@ import s from "../dashboard.module.css";
 import { BarList } from "../_components/charts/BarList";
 import { DataTable } from "../_components/DataTable";
 import { Inspector, Preview } from "../_components/Inspector";
-import { Card, Filters, PageHead, PLATFORM_COLORS } from "../_components/ui";
+import { Card, Filters, PageHead, PLATFORM_COLORS, SyncIssueBanner } from "../_components/ui";
 import { inspectHref } from "@/lib/dashboard/inspect";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
@@ -56,6 +56,7 @@ export default async function CampaignsPage({ searchParams }: PageProps<"/dashbo
     <>
       <PageHead title="Campaigns" subtitle="Drill from campaigns to ad sets to individual ads" mode={mode} />
       <Filters f={f} showPlatform={!campaign && !group} />
+      <SyncIssueBanner data={data} />
 
       <nav aria-label="Breadcrumb" style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", marginBottom: 14, fontSize: 13 }}>
         {crumbs.map((c, i) => (

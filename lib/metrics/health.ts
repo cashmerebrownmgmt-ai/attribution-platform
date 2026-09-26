@@ -107,6 +107,9 @@ export function healthChecks(data: DashboardData, now = Date.parse(data.generate
     );
   }
 
+  // 6b. The latest pull from an ad platform failed.
+  if (data.syncIssue) checks.push(syncIssueCheck(data.syncIssue, now));
+
   // 7. Ad spend matches the ad platform's own account totals, and was pulled recently.
   for (const sync of data.adSync ?? []) {
     const name = `${sync.platform === "meta" ? "Meta" : sync.platform} spend matches Ads Manager`;
@@ -135,6 +138,22 @@ export function healthChecks(data: DashboardData, now = Date.parse(data.generate
   }
 
   return checks;
+}
+
+/** Plain-language cause and fix for a failed ad-platform pull. */
+export function syncIssueCheck(issue: NonNullable<DashboardData["syncIssue"]>, now: number): Check {
+  const age = minutesSince(issue.lastSyncedAt, now);
+  const since = age === null ? "" : ` Spend and ads were last updated ${ago(age)}.`;
+  const blocked = /access blocked|session has expired|invalid oauth|error validating access token|has not authorized/i.test(issue.message);
+  return {
+    id: `sync-failing-${issue.platform}`,
+    name: `${issue.platform === "meta" ? "Meta" : issue.platform} sync is failing`,
+    level: "bad",
+    detail: `${issue.platform === "meta" ? "Meta" : issue.platform} says: "${issue.message}".${since}`,
+    fix: blocked
+      ? "Meta rejected the access token itself, so every request fails. Make a new token (Business Settings → Users → System users → Generate new token, with ads_read), put it in META_ACCESS_TOKEN on Vercel, and redeploy. If that token is blocked too, check developers.facebook.com → your app for a restriction notice."
+      : "Click Refresh to retry. If it keeps failing, check the Meta connection in Settings.",
+  };
 }
 
 export function overallLevel(checks: Check[]): Level {
