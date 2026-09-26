@@ -1,4 +1,5 @@
 import { storeToday } from "../tz";
+import { journeyTouches, type JourneyRow } from "../journeys";
 import "server-only";
 import { cookies } from "next/headers";
 import { MODELS, type Model } from "../attribution";
@@ -62,7 +63,7 @@ async function loadLive(): Promise<DashboardData> {
   const since = new Date(Date.now() - 400 * 86_400_000).toISOString();
   const sinceDay = since.slice(0, 10);
 
-  const [orders, attributions, campaigns, adGroups, ads, insights, settingsRow, health, customers, items, accounts, accountDaily] = await Promise.all([
+  const [orders, attributions, campaigns, adGroups, ads, insights, settingsRow, health, customers, items, accounts, accountDaily, journeys] = await Promise.all([
     fetchAll<OrderFactRow>(
       (a, b) => db().from("order_facts").select("id, name, created_at, revenue, cancelled_at, stitch_method, is_new_customer").gte("created_at", since).order("created_at").range(a, b),
       "order_facts",
@@ -99,6 +100,10 @@ async function loadLive(): Promise<DashboardData> {
       (a, b) => db().from("ad_account_daily").select("platform, date, spend").gte("date", sinceDay).order("date").range(a, b),
       "ad_account_daily",
     ).catch(() => []), // only a cross-check: never let it take the dashboard down
+    fetchAll<Pick<JourneyRow, "order_id" | "first_visit" | "last_visit" | "days_to_conversion">>(
+      (a, b) => db().from("order_journeys").select("order_id, first_visit, last_visit, days_to_conversion").order("order_id").range(a, b),
+      "order_journeys",
+    ).catch(() => []), // fills gaps only; the dashboard works without it
   ]);
 
   const customerOf = new Map(customers.map((c) => [c.id, c.customer_id ? `c:${c.customer_id}` : c.email_hash ? `e:${c.email_hash}` : null]));
@@ -122,7 +127,29 @@ async function loadLive(): Promise<DashboardData> {
     return { ...toTouch(a.events), channel: a.channel };
   };
 
+  const journeyOf = new Map(journeys.map((j) => [j.order_id, j]));
+
   const facts: OrderFact[] = orders.map((o) => {
+    // Our own tracking wins; Shopify's journey only fills in orders it didn't match.
+    const j = o.stitch_method === "none" ? journeyOf.get(o.id) : undefined;
+    const jt = j ? journeyTouches(j) : null;
+    if (jt) {
+      return {
+        id: o.id,
+        name: o.name ?? o.id,
+        createdAt: new Date(o.created_at).toISOString(),
+        revenue: Number(o.revenue),
+        isNew: o.is_new_customer,
+        cancelled: o.cancelled_at !== null,
+        stitchMethod: "shopify_journey",
+        touches: jt,
+        path: [jt.first_touch.channel, jt.last_non_direct.channel, jt.last_touch.channel],
+        daysToPurchase: j?.days_to_conversion ?? null,
+        customerKey: customerOf.get(o.id) ?? null,
+        emailHash: emailOf.get(o.id) ?? null,
+        items: itemsOf.get(o.id) ?? [],
+      };
+    }
     const attr = byOrder.get(o.id) ?? {};
     const touches = Object.fromEntries(MODELS.map((m) => [m, touchFor(attr[m])])) as Record<Model, Touch>;
     const first = attr.first_touch?.events?.occurred_at;
@@ -167,10 +194,19 @@ async function loadLive(): Promise<DashboardData> {
       failed: Number((h.webhooks_24h as { failed?: number })?.failed ?? 0),
     },
     lastWebhookAt: (h.last_webhook_at as string) ?? null,
+    // Recounted below from the orders, so Shopify-journey matches are included.
     stitch7d: (h.stitch_7d as Record<string, number>) ?? {},
     pixelCheckouts7d: Number(h.pixel_checkouts_7d ?? 0),
     orders7d: Number(h.orders_7d ?? 0),
   };
+
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  const recent = facts.filter((f) => Date.parse(f.createdAt) >= weekAgo);
+  if (recent.length) {
+    const byMethod: Record<string, number> = {};
+    for (const f of recent) byMethod[f.stitchMethod] = (byMethod[f.stitchMethod] ?? 0) + 1;
+    healthData.stitch7d = byMethod;
+  }
 
   const str = (v: unknown) => (v == null ? null : String(v));
   return {

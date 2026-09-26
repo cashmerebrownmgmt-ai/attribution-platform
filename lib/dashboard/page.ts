@@ -1,5 +1,6 @@
 import "server-only";
 import { after } from "next/server";
+import { refreshJourneys } from "../journey-refresh";
 import { refreshMeta } from "../meta-refresh";
 import { parseFilters } from "./filters";
 import { currentMode, getDashboardData, todayUtc } from "./data";
@@ -15,7 +16,7 @@ const WAIT_MS = 6_000;
  * or a Refresh picks it up).
  */
 async function freshenAdData(): Promise<void> {
-  const pull = refreshMeta(STALE_MS);
+  const pull = Promise.all([refreshMeta(STALE_MS), refreshJourneys(STALE_MS)]);
   const done = await Promise.race([pull.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), WAIT_MS))]);
   if (!done) after(() => pull.then(() => undefined));
 }

@@ -51,11 +51,13 @@ export function healthChecks(data: DashboardData, now = Date.parse(data.generate
   const total = Object.values(h.stitch7d).reduce((t, n) => t + n, 0);
   if (total > 0) {
     const rate = 1 - (h.stitch7d.none ?? 0) / total;
+    const fromShopify = h.stitch7d.shopify_journey ?? 0;
+    const split = fromShopify > 0 ? ` ${Math.round(((total - (h.stitch7d.none ?? 0) - fromShopify) / total) * 100)}% by our tracking, ${Math.round((fromShopify / total) * 100)}% from Shopify's journey data.` : "";
     checks.push(
       rate >= 0.8
-        ? { id: "match", name: "Orders matched to visitors", level: "ok", detail: `${Math.round(rate * 100)}% of last week's orders have a known journey.` }
+        ? { id: "match", name: "Orders matched to visitors", level: "ok", detail: `${Math.round(rate * 100)}% of last week's orders have a known journey.${split}` }
         : rate >= 0.6
-          ? { id: "match", name: "Orders matched to visitors", level: "warn", detail: `${Math.round(rate * 100)}% matched. Typical healthy stores see 80%+.`, fix: "Check the tracking script loads on every page, including the cart." }
+          ? { id: "match", name: "Orders matched to visitors", level: "warn", detail: `${Math.round(rate * 100)}% matched. Typical healthy stores see 80%+.${split}`, fix: "Check the tracking script loads on every page, including the cart." }
           : { id: "match", name: "Orders matched to visitors", level: "bad", detail: `Only ${Math.round(rate * 100)}% of orders matched.`, fix: "The cart attribute may not be reaching orders. Check the script runs on the cart page." },
     );
   }

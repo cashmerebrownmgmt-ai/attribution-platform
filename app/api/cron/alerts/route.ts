@@ -3,6 +3,7 @@ import { ownerEmail } from "@/lib/access";
 import { isCronAuthorized } from "@/lib/cron-auth";
 import { getDashboardData } from "@/lib/dashboard/data";
 import { saveDailyReport } from "@/lib/daily-report-data";
+import { refreshJourneys } from "@/lib/journey-refresh";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 
@@ -18,6 +19,8 @@ export async function GET(req: Request) {
   if (!isCronAuthorized(req.headers.get("authorization"), process.env.CRON_SECRET)) return Response.json({ error: "unauthorized" }, { status: 401 });
 
   const now = Date.now();
+  // Shopify finishes journey data after checkout; refresh the last few days before reporting on them.
+  await refreshJourneys(0, 3);
   // The daily report goes first: it should be ready even if the alert email fails.
   let reportDay: string | null = null;
   try {

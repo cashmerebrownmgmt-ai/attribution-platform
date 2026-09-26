@@ -180,3 +180,16 @@ describe("re-importing unchanged orders", () => {
     expect(rows).toEqual([{ current_total_price: "10.00" }]);
   });
 });
+
+describe("order_journeys", () => {
+  it("stores one journey per order, removed with the order, RLS on", async () => {
+    await pg.query("select public.upsert_order($1)", [JSON.stringify(order({ id: "77" }))]);
+    await pg.query(`insert into order_journeys (order_id, ready, days_to_conversion, moments, first_visit, last_visit) values ('77', true, 2, 3, '{"utm":{"source":"facebook"}}', null)`);
+    const { rows } = await pg.query("select first_visit->'utm'->>'source' as src from order_journeys where order_id = '77'");
+    expect(rows).toEqual([{ src: "facebook" }]);
+    await expect(pg.query(`insert into order_journeys (order_id) values ('no-such-order')`)).rejects.toThrow();
+    await pg.query("delete from orders where id = '77'");
+    expect((await pg.query("select 1 from order_journeys")).rows).toHaveLength(0);
+    expect((await pg.query("select 1 from pg_class where relname = 'order_journeys' and relrowsecurity")).rows).toHaveLength(1);
+  });
+});

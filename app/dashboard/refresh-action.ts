@@ -2,6 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { requireMember } from "@/lib/auth";
 import { currentMode } from "@/lib/dashboard/data";
+import { refreshJourneys } from "@/lib/journey-refresh";
 import { refreshMeta, type MetaRefresh } from "@/lib/meta-refresh";
 
 export type RefreshResult = { at: string; meta: MetaRefresh | "demo"; message?: string };
@@ -17,7 +18,7 @@ export async function refreshData(): Promise<RefreshResult> {
   if ((await currentMode()) === "demo") {
     result = { at, meta: "demo" };
   } else {
-    const r = await refreshMeta(60_000);
+    const [r] = await Promise.all([refreshMeta(60_000), refreshJourneys(60_000)]);
     result = { at, meta: r.status, message: r.message };
   }
   revalidatePath("/dashboard", "layout");

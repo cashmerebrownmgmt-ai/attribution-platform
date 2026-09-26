@@ -52,6 +52,7 @@ export const METHOD_LABELS: Record<string, string> = {
   cart_attribute: "Cart attribute",
   checkout_token: "Checkout token",
   customer_history: "Customer history",
+  shopify_journey: "Shopify journey",
   none: "Not matched",
 };
 
