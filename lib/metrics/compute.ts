@@ -95,6 +95,8 @@ export type Kpis = {
   newCustomers: number;
   newCustomerShare: number | null;
   spend: number;
+  /** Revenue minus ad spend. Digital products have no cost of goods, so this is the day's profit. */
+  profit: number;
   /** Revenue credited to ad platforms (under the model). */
   paidRevenue: number;
   paidOrders: number;
@@ -136,6 +138,7 @@ export function kpis(data: DashboardData, f: Pick<Filters, "model" | "platform">
     newCustomers: newOrders.length,
     newCustomerShare: ratio(newOrders.length, orders.length),
     spend: round2(spend),
+    profit: round2(revenue - spend),
     paidRevenue: round2(paidRevenue),
     paidOrders: paid.length,
     paidNewRevenue: round2(paidNewRevenue),

@@ -106,6 +106,15 @@ export default async function Overview({ searchParams }: PageProps<"/dashboard">
       </div>
 
       <div className={s.kpiGrid}>
+        <Kpi
+          label="Profit"
+          value={money(k.profit, cur)}
+          current={k.profit}
+          previous={p.profit}
+          vs={vs}
+          trend={pts.map((x) => (x.revenue === null || x.spend === null ? null : x.revenue - x.spend))}
+          target="Revenue − ad spend"
+        />
         <Kpi label="Ad spend" value={money(k.spend, cur)} current={k.spend} previous={p.spend} vs={vs} neutral trend={pts.map((x) => x.spend)} target={metaAsOf ? `Meta as of ${metaAsOf}` : undefined} />
         <Kpi
           label="ROAS (paid)"

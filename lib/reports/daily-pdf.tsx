@@ -131,7 +131,7 @@ function Change({
   label: string;
 }) {
   const d =
-    k.value === null || base === null || base === 0 ? null : k.value / base - 1;
+    k.value === null || base === null || base === 0 ? null : (k.value - base) / Math.abs(base);
   const color =
     d === null || Math.abs(d) < 0.005 || k.key === "adSpend"
       ? C.muted

@@ -13,3 +13,14 @@ describe("failing ad-platform sync", () => {
     expect(syncIssueCheck({ platform: "meta", message: "Please reduce the amount of data", lastSyncedAt: null }, 0).fix).toMatch(/Refresh/);
   });
 });
+
+import { kpis } from "@/lib/metrics/compute";
+import { generateDemo } from "@/lib/demo/generate";
+
+describe("overview profit", () => {
+  it("is revenue minus ad spend", () => {
+    const d = generateDemo({ endDay: "2026-09-20" });
+    const k = kpis(d, { model: "last_non_direct", platform: "all" }, { from: "2026-09-01", to: "2026-09-20" });
+    expect(k.profit).toBeCloseTo(k.revenue - k.spend, 2);
+  });
+});

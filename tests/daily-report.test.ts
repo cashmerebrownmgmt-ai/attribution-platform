@@ -90,3 +90,20 @@ describe("buildDailyReport", () => {
     expect(rep.summary.length).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe("profit (revenue − ad spend)", () => {
+  const ins = (date: string, spend: number) => ({ platform: "meta" as const, adId: "a1", date, spend, impressions: 0, clicks: 0, platformConversions: null, platformRevenue: null });
+  const D = data([order("2026-09-24T15:00:00Z", 150, meta), order("2026-09-17T15:00:00Z", 20)], { insights: [ins("2026-09-24", 60), ins("2026-09-17", 50)] });
+  const r = buildDailyReport(D, [], "2026-09-24");
+  const p = r.kpis.find((x) => x.key === "profit")!;
+
+  it("subtracts the day's ad spend from revenue", () => {
+    expect(p).toMatchObject({ value: 90, lastWeek: -30, upIsGood: true });
+    expect(r.summary).toContain("Profit after ad spend: $90.");
+  });
+
+  it("flags a loss in the summary", () => {
+    const loss = buildDailyReport(D, [], "2026-09-17");
+    expect(loss.summary).toContain("Profit after ad spend: -$30 (ads cost more than the day's sales).");
+  });
+});

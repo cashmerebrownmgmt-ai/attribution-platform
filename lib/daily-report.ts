@@ -26,7 +26,7 @@ export function localDay(iso: string | number, tz = REPORT_TZ): string {
   return f.format(new Date(iso));
 }
 
-export type KpiKey = "revenue" | "orders" | "aov" | "newCustomers" | "sessions" | "conversionRate" | "adSpend" | "adRoas" | "platformRoas";
+export type KpiKey = "revenue" | "profit" | "orders" | "aov" | "newCustomers" | "sessions" | "conversionRate" | "adSpend" | "adRoas" | "platformRoas";
 export type ReportKpi = { key: KpiKey; label: string; kind: "money" | "number" | "pct" | "roas"; value: number | null; lastWeek: number | null; avg7: number | null; upIsGood: boolean };
 export type ReportRow = { name: string; detail: string; value: number; compare: number | null };
 const ACTIONABLE: Verdict[] = ["pause", "refresh", "scale"];
@@ -108,6 +108,8 @@ function statsFor(day: string, ordersByDay: Map<string, OrderFact[]>, sessionsBy
 
 const KPI_DEFS: { key: KpiKey; label: string; kind: ReportKpi["kind"]; upIsGood: boolean; of: (s: DayStats) => number | null; needsAds?: boolean; needsSessions?: boolean }[] = [
   { key: "revenue", label: "Revenue", kind: "money", upIsGood: true, of: (s) => s.revenue },
+  // Digital products: no cost of goods, so revenue minus ad spend is the profit.
+  { key: "profit", label: "Profit (revenue − ad spend)", kind: "money", upIsGood: true, of: (s) => s.revenue - s.adSpend },
   { key: "orders", label: "Orders", kind: "number", upIsGood: true, of: (s) => s.orders },
   { key: "aov", label: "Avg. order value", kind: "money", upIsGood: true, of: (s) => ratio(s.revenue, s.orders) },
   { key: "newCustomers", label: "New customers", kind: "number", upIsGood: true, of: (s) => s.newCustomers },
@@ -123,7 +125,8 @@ const avg = (xs: (number | null)[]) => {
   return v.length ? v.reduce((t, x) => t + x, 0) / v.length : null;
 };
 
-const change = (a: number | null, b: number | null) => (a === null || b === null || b === 0 ? null : a / b - 1);
+// Relative to the base's size, so a move from a loss (negative profit) still reads the right way.
+const change = (a: number | null, b: number | null) => (a === null || b === null || b === 0 ? null : (a - b) / Math.abs(b));
 const pctText = (d: number) => `${Math.abs(Math.round(d * 100))}%`;
 const money = (n: number, cur: string) => new Intl.NumberFormat("en-US", { style: "currency", currency: cur, maximumFractionDigits: 0 }).format(n);
 const weekday = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
@@ -241,6 +244,10 @@ export function buildDailyReport(data: DashboardData, sessions: SessionFact[], d
       ".",
   );
   const spend = k("adSpend");
+  const profit = k("profit")!;
+  if (spend?.value && profit.value !== null) {
+    summary.push(`Profit after ad spend: ${money(profit.value, cur)}${profit.value < 0 ? " (ads cost more than the day's sales)" : ""}.`);
+  }
   if (spend?.value) {
     const ours = k("adRoas")!.value;
     const theirs = k("platformRoas")!.value;
