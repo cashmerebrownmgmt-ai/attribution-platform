@@ -48,7 +48,7 @@ export default async function JourneysPage({ searchParams }: PageProps<"/dashboa
       </div>
 
       <div className={s.stack}>
-        <Card title="Where journeys start → what closed the sale" sub="First touch (left) to last non-direct touch (right). Hover to focus a flow.">
+        <Card title="Where journeys start → what closed the sale" sub="First touch (left) to last non-direct touch (right). Tap or hover to focus a flow.">
           {flows.length === 0 ? (
             <div className={s.empty}>No matched orders in this range.</div>
           ) : (

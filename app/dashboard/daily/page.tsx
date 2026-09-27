@@ -17,16 +17,16 @@ function AbandonedCard({ a }: { a: ReportAbandoned }) {
   return (
     <>
       <Card title="Abandoned carts & checkouts" sub="Visits that added to cart or reached checkout and left without buying">
-        <div className={s.kpiGrid} style={{ marginBottom: 12 }}>
+        <div className={s.kpiGrid} style={{ marginBottom: 12, gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
           <div className={s.card}>
             <div className={s.kpiLabel}>Abandoned carts</div>
             <div className={s.kpiValue}>{num(a.carts)}</div>
-            <div className={s.muted}>{a.cartRate === null ? "—" : `${pct(a.cartRate, 0)} of carts didn't buy`}</div>
+            <div className={s.muted}>{a.cartRate === null ? "—" : `${pct(a.cartRate, 0)} didn’t buy`}</div>
           </div>
           <div className={s.card}>
             <div className={s.kpiLabel}>Abandoned checkouts</div>
             <div className={s.kpiValue}>{num(a.checkouts)}</div>
-            <div className={s.muted}>{a.checkoutRate === null ? "—" : `${pct(a.checkoutRate, 0)} of checkouts didn't finish`}</div>
+            <div className={s.muted}>{a.checkoutRate === null ? "—" : `${pct(a.checkoutRate, 0)} didn’t finish`}</div>
           </div>
           <div className={s.card}>
             <div className={s.kpiLabel}>Left in checkouts</div>

@@ -104,7 +104,7 @@ export default async function CampaignsPage({ searchParams }: PageProps<"/dashbo
             />
           )}
         </Card>
-        <Card title={`${levelName}s`} sub="Hover a name for a quick read, click it for the full breakdown. Green/red compare against your targets.">
+        <Card title={`${levelName}s`} sub="Tap a name for the full breakdown. Green/red compare against your targets.">
           <DataTable
             nameLabel={levelName}
             currency={cur}

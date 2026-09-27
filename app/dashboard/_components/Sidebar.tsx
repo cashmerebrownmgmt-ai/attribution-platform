@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useRef } from "react";
 import s from "../dashboard.module.css";
 
 const NAV = [
@@ -34,13 +35,24 @@ export function Sidebar({ email, role }: { email: string | null; role: string | 
   }
   const qs = carried.toString() ? `?${carried}` : "";
 
+  // On phones the nav is one scrolling row: bring the current page's tab into view.
+  const nav = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = nav.current;
+    const active = el?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!el || !active || el.scrollWidth <= el.clientWidth) return;
+    const box = el.getBoundingClientRect();
+    const tab = active.getBoundingClientRect();
+    el.scrollTo({ left: el.scrollLeft + tab.left - box.left - (box.width - tab.width) / 2, behavior: "smooth" });
+  }, [path]);
+
   return (
     <aside className={s.sidebar}>
       <Link href={`/dashboard${qs}`} className={s.brand}>
         <span className={s.brandMark} aria-hidden="true" />
         Attribution
       </Link>
-      <nav className={s.nav} aria-label="Dashboard">
+      <nav ref={nav} className={s.nav} aria-label="Dashboard">
         {NAV.map((n) => {
           const active = n.href === "/dashboard" ? path === "/dashboard" : path.startsWith(n.href);
           return (

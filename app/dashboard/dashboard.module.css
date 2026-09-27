@@ -411,6 +411,26 @@
   .navLink { white-space: nowrap; padding: 6px 10px; }
   .sideFoot { display: none; }
   .main { padding: 16px 16px 48px; }
+  /* One swipeable row of tabs: no scrollbar, and a fade hints there's more. */
+  .nav { scrollbar-width: none; -webkit-overflow-scrolling: touch; mask-image: linear-gradient(to right, #000 88%, transparent); padding-bottom: 2px; }
+  .nav::-webkit-scrollbar { display: none; }
+}
+
+@media (max-width: 600px) {
+  /* Tables: keep the name column pinned while the numbers scroll, and fit more columns on screen. */
+  .table { font-size: 12px; }
+  .table th, .table td { padding: 8px 7px; }
+  .table th:first-child, .table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); padding-left: 12px; box-shadow: 1px 0 0 var(--grid); }
+  .table th:first-child { z-index: 2; }
+  .table th:last-child, .table td:last-child { padding-right: 12px; }
+  /* Names wrap to two lines, with drill-down links and status chips on the line below. */
+  .table td:first-child { white-space: normal; }
+  .nameCell { width: 46vw; max-width: 46vw; flex-wrap: wrap; row-gap: 3px; }
+  .nameCell > :not(.swatch):not(.rowAction):not(.statusChip) { flex: 1 1 0; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; word-break: break-word; }
+  .nameCell::after { content: ""; order: 1; flex-basis: 100%; height: 0; } /* line break before the chips */
+  .nameCell .rowAction, .nameCell .statusChip { order: 2; font-size: 11px; margin-left: 18px; }
+  .nameCell .rowAction + .statusChip { margin-left: 0; }
+  .callout { font-size: 13px; line-height: 1.45; }
 }
 
 @media (prefers-reduced-motion: reduce) {

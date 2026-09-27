@@ -103,7 +103,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/dashbo
             </table>
           </div>
         )}
-        <p className={s.cardSub} style={{ marginTop: 8 }}>Hover a cell for cumulative revenue per customer. Month 0 counts customers who ordered twice in their first month.</p>
+        <p className={s.cardSub} style={{ marginTop: 8 }}>Tap or hover a cell for cumulative revenue per customer. Month 0 counts customers who ordered twice in their first month.</p>
       </Card>
     </>
   );
