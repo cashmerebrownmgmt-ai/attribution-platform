@@ -1,0 +1,29 @@
+# Every ~15 minutes, ask the app to check today's goals and push alerts to the owner's phone.
+# (Vercel's Hobby plan only runs crons once a day.) Needs the repository secret CRON_SECRET,
+# the same value as on Vercel. GitHub may start scheduled runs a few minutes late.
+name: Goal alerts
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions: {}
+
+concurrency:
+  group: goal-alerts
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check goals
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://attribution-platform-sigma.vercel.app' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "::error::Add the CRON_SECRET repository secret"; exit 1; fi
+          curl -fsS --max-time 90 -H "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/cron/goals"
+          echo
