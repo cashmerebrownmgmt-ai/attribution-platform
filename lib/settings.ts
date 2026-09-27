@@ -21,7 +21,7 @@ export const profileSchema = z.object({
   notes: z.string().trim().max(2000),
 });
 
-export type SettingsRow = z.infer<typeof settingsSchema> & { business_profile: Partial<z.infer<typeof profileSchema>> };
+export type SettingsRow = z.infer<typeof settingsSchema> & { business_profile: Partial<z.infer<typeof profileSchema>>; notify?: unknown };
 
 export async function getSettings(): Promise<SettingsRow | null> {
   const { data, error } = await db().from("settings").select("*").maybeSingle();

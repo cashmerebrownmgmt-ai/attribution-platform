@@ -8,7 +8,11 @@ import { getAdAccounts, getSettings } from "@/lib/settings";
 import s from "../dashboard.module.css";
 import { Card, PageHead } from "../_components/ui";
 import { MIN_PASSWORD, PASSWORD_MESSAGES } from "@/lib/password";
-import { saveProfile, saveTargets, setPassword } from "./actions";
+import { parsePrefs } from "@/lib/goal-alerts";
+import { listDevices, vapidPublicKey } from "@/lib/push";
+import { formatStoreTime } from "@/lib/tz";
+import { removePushSubscription, saveNotify, saveProfile, saveTargets, setPassword } from "./actions";
+import { PhoneApp } from "./PhoneApp";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -21,7 +25,9 @@ const UTM_TEMPLATES = {
 export default async function SettingsPage({ searchParams }: PageProps<"/dashboard/settings">) {
   const me = await requireMember("viewer", "/dashboard/settings");
   const p = await searchParams;
-  const [mode, settings, accounts, h] = await Promise.all([currentMode(), getSettings(), getAdAccounts(), headers()]);
+  const [mode, settings, accounts, h, devices] = await Promise.all([currentMode(), getSettings(), getAdAccounts(), headers(), listDevices()]);
+  const notify = parsePrefs(settings?.notify);
+  const cur = settings?.currency ?? "USD";
   const owner = ownerEmail(process.env);
   const editable = can.editSettings(me.role);
   const saved = one(p.saved);
@@ -48,6 +54,74 @@ export default async function SettingsPage({ searchParams }: PageProps<"/dashboa
       {!editable && <div className={s.callout}>You have view-only access. Ask an admin to change settings.</div>}
 
       <div className={s.grid2}>
+        <Card title="Phone app & notifications" sub="Save the dashboard to your home screen and get pushed alerts for your daily goals">
+          <div id="phone" style={{ display: "grid", gap: 16 }}>
+            <PhoneApp vapidKey={vapidPublicKey()} editable={editable} />
+
+            <form action={saveNotify} className={s.form}>
+              <fieldset disabled={!editable || !settings} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 12 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+                  <div className={s.field}>
+                    <label htmlFor="spendCap">Daily ad spend cap ({cur})</label>
+                    <input id="spendCap" name="spendCap" type="number" step="1" min="0" inputMode="decimal" defaultValue={notify.spendCap ?? ""} placeholder="e.g. 150" />
+                  </div>
+                  <div className={s.field}>
+                    <label htmlFor="revenueGoal">Daily revenue goal ({cur})</label>
+                    <input id="revenueGoal" name="revenueGoal" type="number" step="1" min="0" inputMode="decimal" defaultValue={notify.revenueGoal ?? ""} placeholder="e.g. 500" />
+                  </div>
+                  <div className={s.field}>
+                    <label htmlFor="lossMinSpend">Loss alert after spending ({cur})</label>
+                    <input id="lossMinSpend" name="lossMinSpend" type="number" step="1" min="0" inputMode="decimal" defaultValue={notify.lossMinSpend} />
+                  </div>
+                </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  {(
+                    [
+                      ["on_spendCap", notify.on.spendCap, "Spend passes my daily cap"],
+                      ["on_loss", notify.on.loss, "Losing money today (ad spend more than revenue)"],
+                      ["on_revenueGoal", notify.on.revenueGoal, "Revenue goal hit"],
+                      ["on_daily", notify.on.daily, "Morning report + critical problems"],
+                    ] as const
+                  ).map(([name, on, label]) => (
+                    <label key={name} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 14 }}>
+                      <input type="checkbox" name={name} defaultChecked={on} style={{ width: 18, height: 18 }} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <p className={s.hint} style={{ margin: 0 }}>
+                  Checked every 15 minutes against today (Eastern). Each alert is sent at most once a day. The morning report arrives around 9 AM.
+                </p>
+                <div>
+                  <button className={`${s.button} ${s.buttonPrimary}`} type="submit">
+                    Save alerts
+                  </button>
+                  {saved === "phone" && <span className={s.goodText} style={{ marginLeft: 10 }}>Saved ✓</span>}
+                </div>
+              </fieldset>
+            </form>
+
+            {devices.length > 0 && (
+              <div className={s.statusList}>
+                {devices.map((d) => (
+                  <form key={d.endpoint} action={removePushSubscription.bind(null, d.endpoint)} className={s.statusItem} style={{ gridTemplateColumns: "1fr auto", alignItems: "center" }}>
+                    <div>
+                      <div className={s.statusName}>{d.device ?? "Device"}</div>
+                      <div className={s.statusDetail}>
+                        Added {formatStoreTime(d.created_at, { month: "short", day: "numeric" })}
+                        {d.last_success_at ? ` · last alert ${formatStoreTime(d.last_success_at, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}
+                      </div>
+                    </div>
+                    <button className={`${s.button} ${s.buttonGhost}`} type="submit" disabled={!editable}>
+                      Remove
+                    </button>
+                  </form>
+                ))}
+              </div>
+            )}
+          </div>
+        </Card>
+
         <Card title="Targets" sub="Used to color results and power recommendations">
           <form action={saveTargets} className={s.form} id="targets">
             <fieldset disabled={!editable || !settings} style={{ border: 0, padding: 0, margin: 0, display: "grid", gap: 14 }}>

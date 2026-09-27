@@ -138,6 +138,21 @@ describe("alert_log", () => {
   });
 });
 
+describe("push_subscriptions", () => {
+  it("has RLS on with no policies, one row per device endpoint", async () => {
+    const rls = await pg.query("select 1 from pg_class where relname = 'push_subscriptions' and relrowsecurity");
+    expect(rls.rows).toHaveLength(1);
+    expect((await pg.query("select 1 from pg_policies where tablename = 'push_subscriptions'")).rows).toHaveLength(0);
+    await pg.query(`insert into push_subscriptions (endpoint, p256dh, auth) values ('https://push.example/1', 'k', 'a')`);
+    await expect(pg.query(`insert into push_subscriptions (endpoint, p256dh, auth) values ('https://push.example/1', 'k', 'a')`)).rejects.toThrow();
+  });
+
+  it("adds notification preferences to settings, empty by default", async () => {
+    const { rows } = await pg.query<{ notify: unknown }>("select notify from settings");
+    expect(rows).toEqual([{ notify: {} }]);
+  });
+});
+
 describe("daily_reports", () => {
   it("stores one snapshot per day, with RLS on and no policies", async () => {
     await pg.query(`insert into daily_reports (day, generated_at, report) values ('2026-09-24', now(), '{"summary": ["a"]}')`);

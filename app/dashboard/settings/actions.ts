@@ -6,6 +6,9 @@ import { db } from "@/lib/db";
 import { passwordProblem } from "@/lib/password";
 import { profileSchema, settingsSchema } from "@/lib/settings";
 import { supabaseServer } from "@/lib/supabase/server";
+import { z } from "zod";
+import { notifySchema } from "@/lib/goal-alerts";
+import { removeSubscription, saveSubscription, sendPushes } from "@/lib/push";
 
 const blankToNull = (v: FormDataEntryValue | null) => {
   const s = typeof v === "string" ? v.trim() : "";
@@ -68,4 +71,51 @@ export async function setPassword(form: FormData) {
     back(reauth ? "reauth" : error.code === "weak_password" ? "too_simple" : "failed");
   }
   back("set");
+}
+
+// ─── Phone app & notifications ───────────────────────────────────────────────
+
+const pushSubSchema = z.object({
+  endpoint: z.string().url().startsWith("https://").max(2000),
+  keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(4).max(100) }),
+});
+
+/** Called from the phone after the owner allows notifications. */
+export async function savePushSubscription(sub: unknown, device: string | null): Promise<{ ok: boolean; error?: string }> {
+  await requireMember("admin", "/dashboard/settings");
+  const parsed = pushSubSchema.safeParse(sub);
+  if (!parsed.success) return { ok: false, error: "That device's subscription looks invalid." };
+  try {
+    await saveSubscription(parsed.data, device ? device.slice(0, 60) : null);
+  } catch {
+    return { ok: false, error: "Couldn't save this device. Is the phone-app migration applied?" };
+  }
+  revalidatePath("/dashboard/settings");
+  return { ok: true };
+}
+
+export async function removePushSubscription(endpoint: string): Promise<void> {
+  await requireMember("admin", "/dashboard/settings");
+  if (typeof endpoint === "string" && endpoint.startsWith("https://")) await removeSubscription(endpoint);
+  revalidatePath("/dashboard/settings");
+}
+
+export async function sendTestPush(): Promise<{ sent: number; devices: number }> {
+  await requireMember("admin", "/dashboard/settings");
+  const r = await sendPushes([{ id: `test:${Date.now()}`, title: "Notifications are on ✅", body: "You'll get your goal alerts and morning report here.", url: "/dashboard/settings#phone" }]);
+  return { sent: r.sent, devices: r.devices };
+}
+
+export async function saveNotify(form: FormData) {
+  await requireMember("admin", "/dashboard/settings");
+  const parsed = notifySchema.safeParse({
+    spendCap: blankToNull(form.get("spendCap")),
+    revenueGoal: blankToNull(form.get("revenueGoal")),
+    lossMinSpend: blankToNull(form.get("lossMinSpend")) ?? 50,
+    on: { spendCap: form.has("on_spendCap"), loss: form.has("on_loss"), revenueGoal: form.has("on_revenueGoal"), daily: form.has("on_daily") },
+  });
+  if (!parsed.success) done("phone", parsed.error.issues[0]?.message ?? "Invalid value");
+  const { error } = await db().from("settings").update({ notify: parsed.data, updated_at: new Date().toISOString() }).eq("id", true);
+  if (error) done("phone", "Couldn't save. Is the phone-app migration applied?");
+  done("phone");
 }
