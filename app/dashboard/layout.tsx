@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireMember } from "@/lib/auth";
 import s from "./dashboard.module.css";
+import { PullToRefresh } from "./_components/PullToRefresh";
 import { ServiceWorker } from "./_components/ServiceWorker";
 import { Sidebar } from "./_components/Sidebar";
 
@@ -13,6 +14,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
   return (
     <div className={s.app}>
       <ServiceWorker />
+      <PullToRefresh />
       <Suspense>
         <Sidebar email={me.devBypass ? null : me.email} role={me.role} />
       </Suspense>
