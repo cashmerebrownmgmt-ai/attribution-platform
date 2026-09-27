@@ -78,9 +78,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/dashboa
                   {(
                     [
                       ["on_spendCap", notify.on.spendCap, "Spend passes my daily cap"],
-                      ["on_loss", notify.on.loss, "Losing money today (ad spend more than revenue)"],
+                      ["on_loss", notify.on.loss, "Losing money today (checked after noon)"],
                       ["on_revenueGoal", notify.on.revenueGoal, "Revenue goal hit"],
-                      ["on_daily", notify.on.daily, "Morning report + critical problems"],
+                      ["on_daily", notify.on.daily, "Morning report + urgent problems (orders stopped, tracking or Meta down)"],
                     ] as const
                   ).map(([name, on, label]) => (
                     <label key={name} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 14 }}>
@@ -90,7 +90,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/dashboa
                   ))}
                 </div>
                 <p className={s.hint} style={{ margin: 0 }}>
-                  Checked every 15 minutes against today (Eastern). Each alert is sent at most once a day. The morning report arrives around 9 AM.
+                  Only what matters: each goal alert at most once a day, urgent problems once when they start, and nothing between 10 PM and 8 AM (Eastern). The morning report arrives around 9 AM as a single notification.
                 </p>
                 <div>
                   <button className={`${s.button} ${s.buttonPrimary}`} type="submit">

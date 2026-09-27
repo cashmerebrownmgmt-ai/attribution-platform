@@ -89,3 +89,13 @@ export async function markPushesSent(pushes: Push[], at = new Date().toISOString
     .upsert(pushes.map((p) => ({ id: p.id, last_sent_at: at, last_title: p.title })), { onConflict: "id" });
   if (error) console.error("alert_log write failed:", error.message);
 }
+
+/**
+ * Forget pushed problems that are no longer active, so each can alert again if it comes back.
+ * `active` are the problem push IDs still current.
+ */
+export async function clearResolvedProblems(active: string[]): Promise<void> {
+  const { data } = await db().from("alert_log").select("id").like("id", "push:%");
+  const gone = (data ?? []).map((r) => String(r.id)).filter((id) => !active.includes(id));
+  if (gone.length) await db().from("alert_log").delete().in("id", gone);
+}
