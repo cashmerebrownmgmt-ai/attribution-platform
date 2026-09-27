@@ -3,7 +3,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Attribution Platform",
+  applicationName: "Attribution",
   robots: { index: false, follow: false },
+  // Added to an iPhone's home screen, it opens full screen with its own name.
+  appleWebApp: { capable: true, title: "Attribution", statusBarStyle: "default" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {

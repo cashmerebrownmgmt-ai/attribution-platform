@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { requireMember } from "@/lib/auth";
 import s from "./dashboard.module.css";
+import { ServiceWorker } from "./_components/ServiceWorker";
 import { Sidebar } from "./_components/Sidebar";
 
 export const metadata: Metadata = { title: "Dashboard · Attribution" };
@@ -11,6 +12,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
   const me = await requireMember("viewer");
   return (
     <div className={s.app}>
+      <ServiceWorker />
       <Suspense>
         <Sidebar email={me.devBypass ? null : me.email} role={me.role} />
       </Suspense>
