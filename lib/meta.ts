@@ -441,6 +441,46 @@ export async function syncMeta(deps: { client: MetaClient; store: MetaStore; now
   };
 }
 
+/** What the quick spend refresh needs from storage. */
+export type SpendStore = Pick<MetaStore, "upsertInsights" | "upsertAccountDaily"> & {
+  /** Which of these ad IDs are already stored (insights for others wait for a full sync). */
+  knownAdIds(ids: string[]): Promise<Set<string>>;
+  markSynced(accountId: string, at: string): Promise<void>;
+};
+
+/**
+ * The quick refresh behind the dashboard's Refresh button: just the day-level numbers (ad-level
+ * insights and account totals), fetched in parallel, without walking every campaign, ad set and ad.
+ * Rows for ads not stored yet are left for the next full sync, and `unknownAds` says to run one.
+ */
+export async function syncMetaSpend(
+  deps: { client: MetaClient; store: SpendStore; now?: () => Date },
+  opts: { accountId: string; since: string; until: string },
+): Promise<{ insightRows: number; unknownAds: number; accountSpend: number }> {
+  const now = (deps.now ?? (() => new Date()))().toISOString();
+  const accountId = bareAccountId(opts.accountId);
+  const act = `act_${accountId}`;
+  const range = { since: isoDay(opts.since), until: isoDay(opts.until) };
+  const { client, store } = deps;
+
+  const [adRows, accountRows] = await Promise.all([
+    client.getAll(`${act}/insights`, { level: "ad", time_increment: "1", time_range: JSON.stringify(range), fields: INSIGHT_FIELDS, limit: "100" }, insightSchema),
+    client.getAll(`${act}/insights`, { level: "account", time_increment: "1", time_range: JSON.stringify(range), fields: "spend,date_start", limit: "100" }, accountSpendSchema),
+  ]);
+  const insights = adRows.map((r) => mapInsight(r, now));
+  const known = await store.knownAdIds([...new Set(insights.map((i) => i.ad_id))]);
+  const kept = insights.filter((i) => known.has(i.ad_id));
+  const accountDaily: AccountDailyRow[] = accountRows.map((r) => ({ platform: "meta", account_id: accountId, date: r.date_start, spend: money(r.spend), updated_at: now }));
+
+  await Promise.all([store.upsertInsights(kept), store.upsertAccountDaily(accountDaily)]);
+  await store.markSynced(accountId, now);
+  return {
+    insightRows: kept.length,
+    unknownAds: new Set(insights.filter((i) => !known.has(i.ad_id)).map((i) => i.ad_id)).size,
+    accountSpend: Math.round(accountDaily.reduce((t, d) => t + d.spend, 0) * 100) / 100,
+  };
+}
+
 // ─── Ad previews ─────────────────────────────────────────────────────────────
 
 /** Placements Meta can render an exact preview for, with your Page name and profile picture. */

@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { formatStoreTime } from "@/lib/tz";
 import { useState, useTransition } from "react";
 import { refreshData, type RefreshResult } from "../refresh-action";
@@ -15,15 +14,14 @@ const NOTES: Record<RefreshResult["meta"], string> = {
 
 /** Re-reads everything (and pulls the latest Meta numbers) with one click. */
 export function RefreshButton() {
-  const router = useRouter();
   const [pending, start] = useTransition();
   const [result, setResult] = useState<RefreshResult | null>(null);
 
   const click = () =>
     start(async () => {
       const r = await refreshData();
+      // The action's revalidatePath already sends the re-rendered page back; no second refresh needed.
       setResult(r);
-      router.refresh();
     });
 
   // Store time, not the device's, so it matches every other time on the dashboard.

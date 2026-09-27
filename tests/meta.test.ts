@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { ctaLabel, dateWindows, landingUrl, mapAd, mapCampaign, mapInsight, mapStatus, MetaApiError, metaClient, purchases, syncMeta, type MetaFetch, type MetaStore } from "@/lib/meta";
+import { ctaLabel, dateWindows, landingUrl, mapAd, mapCampaign, mapInsight, mapStatus, MetaApiError, metaClient, purchases, syncMeta, syncMetaSpend, type MetaFetch, type MetaStore } from "@/lib/meta";
 
 const NOW = "2026-09-25T12:00:00.000Z";
 
@@ -183,6 +183,33 @@ describe("syncMeta", () => {
     await syncMeta({ client, store }, { accountId: "42", since: "2026-09-23", until: "2026-09-24", dryRun: true });
     expect(written).toEqual({});
     await expect(syncMeta({ client, store }, { accountId: "42", since: "yesterday", until: "2026-09-24" })).rejects.toThrow("YYYY-MM-DD");
+  });
+});
+
+describe("syncMetaSpend (quick refresh)", () => {
+  it("pulls only day-level numbers, keeps rows for stored ads, and stamps the sync", async () => {
+    const paths: string[] = [];
+    const f: MetaFetch = async (url) => {
+      const u = new URL(url);
+      paths.push(`${u.pathname.replace(/^\/v\d+\.\d+\//, "")}:${u.searchParams.get("level")}`);
+      const body =
+        u.searchParams.get("level") === "ad"
+          ? { data: [{ ad_id: "a1", date_start: "2026-09-24", spend: "15.5", impressions: "120" }, { ad_id: "new", date_start: "2026-09-24", spend: "4", impressions: "9" }] }
+          : { data: [{ date_start: "2026-09-24", spend: "19.5" }] };
+      return { status: 200, json: async () => body };
+    };
+    const written: Record<string, unknown> = {};
+    const store = {
+      upsertInsights: async (rows: unknown) => void (written.insights = rows),
+      upsertAccountDaily: async (rows: unknown) => void (written.accountDaily = rows),
+      knownAdIds: async (ids: string[]) => new Set(ids.filter((i) => i === "a1")),
+      markSynced: async (id: string, at: string) => void (written.synced = { id, at }),
+    };
+    const r = await syncMetaSpend({ client: metaClient({ token: "T", fetch: f }), store, now: () => new Date(NOW) }, { accountId: "act_42", since: "2026-09-23", until: "2026-09-24" });
+    expect(r).toEqual({ insightRows: 1, unknownAds: 1, accountSpend: 19.5 });
+    expect(paths.sort()).toEqual(["act_42/insights:account", "act_42/insights:ad"]); // no campaigns/ad sets/ads walk
+    expect((written.insights as { ad_id: string }[]).map((i) => i.ad_id)).toEqual(["a1"]);
+    expect(written.synced).toEqual({ id: "42", at: NOW });
   });
 });
 

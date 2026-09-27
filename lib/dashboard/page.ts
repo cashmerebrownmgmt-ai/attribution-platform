@@ -8,7 +8,7 @@ import { currentMode, getDashboardData, todayUtc } from "./data";
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const STALE_MS = 15 * 60_000;
-const WAIT_MS = 6_000;
+const WAIT_MS = 3_000;
 
 /**
  * Pull fresh Meta numbers when the stored ones are over 15 minutes old. Waits up to a few seconds so
