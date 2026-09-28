@@ -23,6 +23,8 @@ function deviceName(): string {
   if (/iPhone/.test(ua)) return "iPhone";
   if (/iPad/.test(ua)) return "iPad";
   if (/Android/.test(ua)) return "Android phone";
+  // iPhones and iPads can report themselves as a Mac (desktop-site mode, home-screen apps); Macs have no touchscreen.
+  if (/Mac/.test(ua) && navigator.maxTouchPoints > 1) return Math.min(screen.width, screen.height) < 600 ? "iPhone" : "iPad";
   if (/Mac/.test(ua)) return "Mac";
   if (/Windows/.test(ua)) return "Windows PC";
   return "Browser";
