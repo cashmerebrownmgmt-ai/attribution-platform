@@ -2,6 +2,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import s from "../dashboard.module.css";
+import { DEFAULT_PRESET } from "@/lib/dashboard/filters";
 import { DateRangePicker } from "./DateRangePicker";
 
 type Option = { value: string; label: string };
@@ -49,7 +50,7 @@ export function FilterBar({ preset, from, to, today, model, platform, rangeText,
           go((q) => {
             q.delete("from");
             q.delete("to");
-            if (id === "30d") q.delete("range");
+            if (id === DEFAULT_PRESET) q.delete("range");
             else q.set("range", id);
           })
         }

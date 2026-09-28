@@ -15,6 +15,9 @@ export const PRESETS = [
 ] as const;
 export type PresetId = (typeof PRESETS)[number]["id"];
 
+/** What every page shows when opened without a date range: today, in store time. */
+export const DEFAULT_PRESET: PresetId = "today";
+
 export const MODEL_LABELS: Record<Model, string> = {
   first_touch: "First touch",
   last_touch: "Last touch",
@@ -53,7 +56,7 @@ export function parseFilters(params: Params, today: string): ParsedFilters {
   }
 
   const presetParam = one(params.range) as PresetId | undefined;
-  const preset = PRESETS.find((p) => p.id === presetParam) ?? PRESETS.find((p) => p.id === "30d")!;
+  const preset = PRESETS.find((p) => p.id === presetParam) ?? PRESETS.find((p) => p.id === DEFAULT_PRESET)!;
   return { range: presetRange(preset.id, today), model, platform, preset: preset.id };
 }
 
@@ -84,7 +87,7 @@ export function filterQuery(f: ParsedFilters, overrides: Record<string, string |
   if (f.preset === "custom") {
     q.set("from", f.range.from);
     q.set("to", f.range.to);
-  } else if (f.preset !== "30d") q.set("range", f.preset);
+  } else if (f.preset !== DEFAULT_PRESET) q.set("range", f.preset);
   if (f.model !== "last_non_direct") q.set("model", f.model);
   if (f.platform !== "all") q.set("platform", f.platform);
   for (const [k, v] of Object.entries(overrides)) {

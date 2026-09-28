@@ -20,19 +20,19 @@ describe("presetRange", () => {
 });
 
 describe("parseFilters", () => {
-  it("defaults to last 30 days, last non-direct, all platforms", () => {
-    expect(parseFilters({}, TODAY)).toMatchObject({ preset: "30d", model: "last_non_direct", platform: "all", range: { from: "2026-08-26", to: TODAY } });
+  it("defaults to today, last non-direct, all platforms", () => {
+    expect(parseFilters({}, TODAY)).toMatchObject({ preset: "today", model: "last_non_direct", platform: "all", range: { from: TODAY, to: TODAY } });
   });
   it("reads presets, model and platform; ignores junk", () => {
     expect(parseFilters({ range: "yesterday", model: "first_touch", platform: "tiktok" }, TODAY)).toMatchObject({
       preset: "yesterday", model: "first_touch", platform: "tiktok", range: { from: "2026-09-23", to: "2026-09-23" },
     });
-    expect(parseFilters({ range: "bogus", model: "x", platform: "myspace" }, TODAY)).toMatchObject({ preset: "30d", model: "last_non_direct", platform: "all" });
+    expect(parseFilters({ range: "bogus", model: "x", platform: "myspace" }, TODAY)).toMatchObject({ preset: "today", model: "last_non_direct", platform: "all" });
   });
   it("accepts a custom range, clamping the future and anything over a year", () => {
     expect(parseFilters({ from: "2026-09-01", to: "2026-12-01" }, TODAY).range).toEqual({ from: "2026-09-01", to: TODAY });
     expect(parseFilters({ from: "2020-01-01", to: "2026-09-24" }, TODAY).range.from).toBe("2025-09-24");
-    expect(parseFilters({ from: "2026-09-10", to: "2026-09-01" }, TODAY).preset).toBe("30d"); // reversed → ignored
+    expect(parseFilters({ from: "2026-09-10", to: "2026-09-01" }, TODAY).preset).toBe("today"); // reversed → ignored
   });
   it("round-trips through the query string", () => {
     const f = parseFilters({ range: "7d", platform: "meta" }, TODAY);
